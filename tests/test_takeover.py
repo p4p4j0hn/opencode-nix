@@ -25,7 +25,7 @@ class TakeoverTests(unittest.TestCase):
 
     def test_known_server_terminated(self):
         with patch.object(takeover, "listening_pids", side_effect=[{123}, set()]), patch.object(takeover, "opencode_server", return_value=True), patch.object(takeover.os, "kill") as kill:
-            takeover.takeover(4096, 0)
+            takeover.takeover(4096, 1)
             kill.assert_called_once_with(123, signal.SIGTERM)
 
     def test_known_server_escalates_after_timeout(self):
