@@ -28,7 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import json, os, re, urllib.request, urllib.error
+          import json, os, urllib.request
           repo=os.environ["GH_REPO"]
           run=os.environ["RUN_ID"]
           token=os.environ["GH_TOKEN"]
@@ -53,7 +53,7 @@ jobs:
               if len(data.get("jobs",[]))<100: break
               page+=1
           failed=[j for j in jobs if j.get("conclusion") in ("failure","timed_out","startup_failure","action_required")]
-          lines=[
+          # Avoid publishing raw logs to issues in this public repository.\n          # Job IDs and links let a maintainer or connected assistant retrieve them securely.\n          lines=[
               f"Automated failure report for [run #{run}]({os.environ['RUN_URL']}).",
               "",
               f"- Workflow: `{os.environ['WORKFLOW_NAME']}`",
@@ -64,21 +64,11 @@ jobs:
           ]
           for job in failed:
               lines += [f"### {job['name']}", f"[Job logs]({job['html_url']})", ""]
-              try:
-                  # Use per-job log endpoint; GitHub redirects to a short-lived text URL.
-                  req=urllib.request.Request(
-                      base+f"/actions/jobs/{job['id']}/logs",
-                      headers=headers)
-                  with urllib.request.urlopen(req,timeout=60) as response:
-                      log=response.read(2_000_000).decode("utf-8","replace")
-                  # Avoid copying full logs/secrets to an issue. Prefer a bounded
-                  # tail; GitHub redacts configured secrets in job logs.
-                  tail="\n".join(log.splitlines()[-100:])
-                  tail=re.sub(r"(?i)(authorization: *(?:bearer|basic) +)[^\s]+",r"\1[REDACTED]",tail)
-                  tail=tail[-12000:]
-                  lines += ["<details><summary>Last 100 log lines (truncated)</summary>","","```text",tail,"```","</details>",""]
-              except Exception as e:
-                  lines += [f"Could not retrieve logs: `{type(e).__name__}`. Follow the job link above.",""]
+              lines += [f"- Job ID: \`{job['id']}\`", f"- Conclusion: \`{job.get('conclusion')}\`"]
+              for step in job.get("steps", []):
+                  if step.get("conclusion") in ("failure", "timed_out"):
+                      lines.append(f"- Failed step: \`{step.get('name', 'unnamed')}\`")
+              lines.append("")
           if not failed:
               lines.append("No failed jobs appeared in the jobs API. See the workflow run link.")
           marker=f"<!-- opencode-nix-failure-run:{run} -->"
