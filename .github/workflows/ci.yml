@@ -14,10 +14,24 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - name: Determine whether upstream binaries are initialized
+        id: bootstrap
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          d = json.load(open("version.json"))
+          ready = d["version"] != "0.0.0" and all(d["hashes"].values())
+          print(f"ready={'true' if ready else 'false'}")
+          PY
+      - name: Explain bootstrap status
+        if: steps.bootstrap.outputs.ready != 'true'
+        run: echo "Binary hashes not initialized yet. Run the Update OpenCode binaries workflow, then merge its PR."
       - uses: cachix/install-nix-action@v31
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
+        if: steps.bootstrap.outputs.ready == 'true'
       - name: Validate flake
+        if: steps.bootstrap.outputs.ready == 'true'
         run: nix flake check --show-trace
       - name: Check OpenCode executable
+        if: steps.bootstrap.outputs.ready == 'true'
         run: nix run . -- --version
