@@ -7,7 +7,7 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, ... }:
+  outputs = { self, nixpkgs, home-manager, ... }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
       eachSystem = f: nixpkgs.lib.genAttrs systems (system: f (import nixpkgs { inherit system; }));
@@ -28,8 +28,14 @@
       };
       homeManagerModules.default = import ./modules/home-manager.nix self;
       homeManagerModules.opencode = self.homeManagerModules.default;
-      checks = eachSystem (pkgs: {
-        package = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
-      });
+      checks = eachSystem (pkgs:
+        {
+          package = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+        } // nixpkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+          home-manager-module = import ./tests/home-manager.nix {
+            inherit pkgs home-manager;
+            module = self.homeManagerModules.default;
+          };
+        });
     };
 }
