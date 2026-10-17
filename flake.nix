@@ -32,6 +32,14 @@
         {
           package = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
         } // nixpkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+          takeover-unit-tests = pkgs.runCommand "opencode-takeover-unit-tests" {
+            nativeBuildInputs = [ pkgs.python3 ];
+            src = ./.;
+          } ''
+            cd "$src"
+            python3 -m unittest discover -s tests -p 'test_*.py' -v
+            touch "$out"
+          '';
           home-manager-module = import ./tests/home-manager.nix {
             inherit pkgs home-manager;
             module = self.homeManagerModules.default;
