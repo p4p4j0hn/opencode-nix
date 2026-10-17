@@ -2,10 +2,6 @@
 
 Standalone Nix flake wrapping official prebuilt OpenCode CLI archives, with an optional Home Manager systemd user backend and a compaction-recovery skill.
 
-## First run
-
-The bootstrap version file intentionally has empty hashes. Run **Actions → Update OpenCode binaries → Run workflow**. The workflow downloads all upstream platform archives, hashes their actual bytes, and creates a release-update PR. Review and merge it before expecting the flake to build.
-
 ## Use
 
 Add `inputs.opencode-nix.url = "github:p4p4j0hn/opencode-nix";` to your flake inputs.
