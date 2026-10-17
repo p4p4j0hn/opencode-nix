@@ -38,6 +38,7 @@ let
   }).config;
   server = makeHome {};
   client = makeHome { backend.enable = false; };
+  takeoverServer = makeHome { backend = { enable = true; takeover.enable = true; }; };
   service = server.systemd.user.services.opencode-backend.Service;
   tunnel = server.systemd.user.services.opencode-tunnel-lab.Service;
   serviceOk =
@@ -48,6 +49,10 @@ let
   tunnelOk =
     builtins.match ".*-L 127.0.0.1:14096:127.0.0.1:4096.*" (builtins.head tunnel.ExecStart) != null;
   disabledOk = !(client.systemd.user.services ? opencode-backend);
+  takeoverOk =
+    builtins.length takeoverServer.systemd.user.services.opencode-backend.Service.ExecStartPre == 1
+    && builtins.match ".*takeover.*--port 4096.*" (builtins.head takeoverServer.systemd.user.services.opencode-backend.Service.ExecStartPre) != null
+    && server.systemd.user.services.opencode-backend.Service.ExecStartPre == [];
   commandsOk = builtins.length server.home.packages >= 3;
   upstreamOk =
     server.programs.opencode.enable
@@ -65,6 +70,7 @@ in
 assert serviceOk;
 assert tunnelOk;
 assert disabledOk;
+assert takeoverOk;
 assert commandsOk;
 assert upstreamOk;
 pkgs.writeText "opencode-home-manager-module-tested" "Home Manager remote client and systemd service evaluated successfully\n"
