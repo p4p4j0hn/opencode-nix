@@ -52,6 +52,13 @@ in {
       enable = mkEnableOption "persistent OpenCode systemd user backend";
       host = mkOption { type = types.str; default = "127.0.0.1"; };
       port = mkOption { type = types.port; default = 4096; };
+      takeover = {
+        enable = mkEnableOption "take over the port from an existing same-user OpenCode serve process";
+        graceSeconds = mkOption {
+          type = types.ints.between 0 60;
+          default = 5;
+        };
+      };
       environmentFile = mkOption {
         type = types.nullOr types.str;
         default = null;
@@ -93,7 +100,10 @@ in {
     recoverySkill.enable = mkOption { type = types.bool; default = true; };
   };
   config = mkIf cfg.enable {
-    assertions = lib.mapAttrsToList (name: connection: {
+    assertions = [{
+      assertion = !cfg.backend.takeover.enable || pkgs.stdenv.isLinux;
+      message = "OpenCode takeover requires Linux.";
+    }] ++ lib.mapAttrsToList (name: connection: {
       assertion =
         builtins.match "[a-zA-Z0-9_-]+" name != null &&
         (if connection.transport == "ssh"
@@ -123,6 +133,9 @@ in {
           };
           Service = {
             ExecStart = "${lib.getExe cfg.package} serve --hostname ${lib.escapeShellArg cfg.backend.host} --port ${toString cfg.backend.port}";
+            ExecStartPre = lib.optional cfg.backend.takeover.enable
+              "${pkgs.python3}/bin/python3 ${pkgs.writeText "opencode-takeover.py" (builtins.readFile ../scripts/takeover-port.py)} --port ${toString cfg.backend.port} --grace-seconds ${toString cfg.backend.takeover.graceSeconds}";
+            Path = lib.optionals cfg.backend.takeover.enable [ pkgs.lsof ];
             Restart = "always";
             RestartSec = "2s";
             RestartSteps = 8;
