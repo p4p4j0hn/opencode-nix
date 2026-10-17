@@ -53,7 +53,9 @@ jobs:
               if len(data.get("jobs",[]))<100: break
               page+=1
           failed=[j for j in jobs if j.get("conclusion") in ("failure","timed_out","startup_failure","action_required")]
-          # Avoid publishing raw logs to issues in this public repository.\n          # Job IDs and links let a maintainer or connected assistant retrieve them securely.\n          lines=[
+          # Avoid publishing raw logs to issues in this public repository.
+          # Job IDs and links let a maintainer or connected assistant retrieve them securely.
+          lines=[
               f"Automated failure report for [run #{run}]({os.environ['RUN_URL']}).",
               "",
               f"- Workflow: `{os.environ['WORKFLOW_NAME']}`",
