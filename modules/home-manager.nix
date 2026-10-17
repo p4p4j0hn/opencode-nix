@@ -135,7 +135,7 @@ in {
             ExecStart = "${lib.getExe cfg.package} serve --hostname ${lib.escapeShellArg cfg.backend.host} --port ${toString cfg.backend.port}";
             ExecStartPre = lib.optional cfg.backend.takeover.enable
               "${pkgs.python3}/bin/python3 ${pkgs.writeText "opencode-takeover.py" (builtins.readFile ../scripts/takeover-port.py)} --port ${toString cfg.backend.port} --grace-seconds ${toString cfg.backend.takeover.graceSeconds}";
-            Path = lib.optionals cfg.backend.takeover.enable [ pkgs.lsof ];
+            Environment = lib.optional cfg.backend.takeover.enable "OPENCODE_LSOF=${pkgs.lsof}/bin/lsof";
             Restart = "always";
             RestartSec = "2s";
             RestartSteps = 8;
