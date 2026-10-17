@@ -1,0 +1,103 @@
+name: Report CI failures
+on:
+  workflow_run:
+    workflows:
+      - CI
+      - Update OpenCode binaries
+    types: [completed]
+permissions:
+  actions: read
+  issues: write
+  contents: read
+jobs:
+  report:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect failure details and upsert issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, urllib.request, urllib.error
+          repo=os.environ["GH_REPO"]
+          run=os.environ["RUN_ID"]
+          token=os.environ["GH_TOKEN"]
+          base=f"https://api.github.com/repos/{repo}"
+          headers={"Authorization":f"Bearer {token}","Accept":"application/vnd.github+json",
+                   "X-GitHub-Api-Version":"2022-11-28","User-Agent":"opencode-nix-failure-reporter"}
+          def api(path,method="GET",payload=None,accept=None):
+              hdr=dict(headers)
+              if accept: hdr["Accept"]=accept
+              data=None if payload is None else json.dumps(payload).encode()
+              req=urllib.request.Request(base+path,data=data,headers=hdr,method=method)
+              with urllib.request.urlopen(req,timeout=45) as response:
+                  body=response.read()
+              if accept=="application/vnd.github+json":
+                  return json.loads(body)
+              return json.loads(body) if body else None
+          jobs=[]
+          page=1
+          while True:
+              data=api(f"/actions/runs/{run}/jobs?per_page=100&page={page}")
+              jobs.extend(data.get("jobs",[]))
+              if len(data.get("jobs",[]))<100: break
+              page+=1
+          failed=[j for j in jobs if j.get("conclusion") in ("failure","timed_out","startup_failure","action_required")]
+          lines=[
+              f"Automated failure report for [run #{run}]({os.environ['RUN_URL']}).",
+              "",
+              f"- Workflow: `{os.environ['WORKFLOW_NAME']}`",
+              f"- Commit: `{os.environ['HEAD_SHA']}`",
+              f"- Branch: `{os.environ['HEAD_BRANCH']}`",
+              f"- Run attempt: `{os.environ['RUN_ATTEMPT']}`",
+              "",
+          ]
+          for job in failed:
+              lines += [f"### {job['name']}", f"[Job logs]({job['html_url']})", ""]
+              try:
+                  # Use per-job log endpoint; GitHub redirects to a short-lived text URL.
+                  req=urllib.request.Request(
+                      base+f"/actions/jobs/{job['id']}/logs",
+                      headers=headers)
+                  with urllib.request.urlopen(req,timeout=60) as response:
+                      log=response.read(2_000_000).decode("utf-8","replace")
+                  # Avoid copying full logs/secrets to an issue. Prefer a bounded
+                  # tail; GitHub redacts configured secrets in job logs.
+                  tail="\n".join(log.splitlines()[-100:])
+                  tail=re.sub(r"(?i)(authorization: *(?:bearer|basic) +)[^\s]+",r"\1[REDACTED]",tail)
+                  tail=tail[-12000:]
+                  lines += ["<details><summary>Last 100 log lines (truncated)</summary>","","```text",tail,"```","</details>",""]
+              except Exception as e:
+                  lines += [f"Could not retrieve logs: `{type(e).__name__}`. Follow the job link above.",""]
+          if not failed:
+              lines.append("No failed jobs appeared in the jobs API. See the workflow run link.")
+          marker=f"<!-- opencode-nix-failure-run:{run} -->"
+          body=marker+"\n"+"\n".join(lines)
+          body=body[:60000]
+          title=f"[CI failure] {os.environ['WORKFLOW_NAME']} (run {run})"
+          # One issue per run ID; reruns update the existing issue.
+          issues=[]
+          page=1
+          while True:
+              batch=api(f"/issues?state=all&per_page=100&page={page}")
+              issues.extend(batch)
+              if len(batch)<100: break
+              page+=1
+          issue=next((i for i in issues if marker in (i.get("body") or "")),None)
+          if issue:
+              api(f"/issues/{issue['number']}","PATCH",{"body":body,"state":"open"})
+              print("Updated issue",issue["number"])
+          else:
+              created=api("/issues","POST",{"title":title,"body":body})
+              print("Created issue",created["number"])
+          PY
