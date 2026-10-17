@@ -1,0 +1,30 @@
+name: Update OpenCode binaries
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: opencode-upstream-update
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Hash upstream release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/update-version.py
+      - name: Open update pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          add-paths: version.json
+          commit-message: "chore: update OpenCode upstream binaries"
+          branch: automation/opencode-release
+          delete-branch: true
+          title: "chore: update OpenCode binaries"
+          body: "Automatically downloaded and SHA-256 hashed all four upstream CLI assets. CI must pass before merging."
