@@ -14,6 +14,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - name: Test backend takeover safeguards
+        if: runner.os == 'Linux'
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
       - name: Determine whether upstream binaries are initialized
         id: bootstrap
         shell: bash
