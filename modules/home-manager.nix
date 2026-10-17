@@ -30,6 +30,12 @@ let
       exec ${lib.getExe cfg.package} attach ${lib.escapeShellArg (attachUrl connection)} "$@"
     '';
 in {
+  imports = map (name:
+    lib.mkAliasOptionModule [ "programs" "opencode-nix" name ] [ "programs" "opencode" name ]
+  ) [
+    "extraPackages" "enableMcpIntegration" "tui" "web" "context"
+    "commands" "agents" "skills" "themes" "tools"
+  ];
   options.programs.opencode-nix = {
     enable = mkEnableOption "OpenCode from the opencode-nix flake";
     package = mkOption {
@@ -100,11 +106,13 @@ in {
         in builtins.length (lib.unique ports) == builtins.length ports;
       message = "OpenCode SSH connections must use distinct localPort values.";
     }];
-    home.packages = [ cfg.package ] ++ lib.mapAttrsToList attachCommand connections;
-    xdg.configFile."opencode/opencode.json".text =
-      builtins.toJSON ({ "$schema" = "https://opencode.ai/config.json"; } // cfg.settings);
-    xdg.configFile."opencode/skills/compaction-recovery/SKILL.md" =
-      mkIf cfg.recoverySkill.enable { source = ../skills/compaction-recovery/SKILL.md; };
+    programs.opencode = {
+      enable = true;
+      package = cfg.package;
+      settings = cfg.settings;
+      skills.compaction-recovery = mkIf cfg.recoverySkill.enable ../skills/compaction-recovery/SKILL.md;
+    };
+    home.packages = lib.mapAttrsToList attachCommand connections;
     systemd.user.services =
       lib.optionalAttrs cfg.backend.enable {
         opencode-backend = {
