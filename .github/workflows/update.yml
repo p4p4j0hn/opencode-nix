@@ -14,6 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Generate release automation app token
+        id: app
+        if: ${{ vars.RELEASE_APP_ID != '' }}
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       - name: Hash upstream release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -21,7 +28,7 @@ jobs:
       - name: Open update pull request
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app.outputs.token || github.token }}
           add-paths: version.json
           commit-message: "chore: update OpenCode upstream binaries"
           branch: automation/opencode-release
