@@ -16,3 +16,39 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: python3 scripts/verify-release-pr.py
+  arm-auto-merge:
+    name: enable-safe-auto-merge
+    needs: verify
+    if: ${{ github.event.pull_request.head.ref == 'automation/opencode-release' && github.event.pull_request.head.repo.full_name == github.repository && vars.RELEASE_AUTOMERGE_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify main branch required checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, subprocess
+          repo=os.environ["GH_REPO"]
+          raw=subprocess.check_output(["gh","api",f"repos/{repo}/branches/main/protection/required_status_checks"],text=True)
+          rules=json.loads(raw)
+          expected={"nix (ubuntu-latest)","nix (macos-latest)","release-policy"}
+          actual=set(rules.get("contexts",[])) | {c["context"] for c in rules.get("checks",[])}
+          if not expected.issubset(actual):
+              raise SystemExit(f"Refusing to auto-merge: required checks missing: {sorted(expected-actual)}")
+          print("Required checks enforced:", sorted(expected))
+          PY
+      - name: Generate merge app token
+        id: app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+      - name: Enable GitHub auto-merge
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr merge "$PR_NUMBER" --auto --squash --repo "$GH_REPO"
