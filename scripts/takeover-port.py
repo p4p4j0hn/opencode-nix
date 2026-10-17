@@ -14,7 +14,7 @@ import time
 
 def listening_pids(port):
     result = subprocess.run(
-        ["lsof", "-nP", "-t", "-sTCP:LISTEN", f"-iTCP:{port}"],
+        [os.environ.get("OPENCODE_LSOF", "lsof"), "-nP", "-t", "-sTCP:LISTEN", f"-iTCP:{port}"],
         capture_output=True, text=True, check=False,
     )
     if result.returncode not in (0, 1):
