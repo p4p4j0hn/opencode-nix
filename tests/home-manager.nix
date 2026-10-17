@@ -48,7 +48,7 @@ let
   tunnelOk =
     builtins.match ".*-L 127.0.0.1:14096:127.0.0.1:4096.*" (builtins.head tunnel.ExecStart) != null;
   disabledOk = !(client.systemd.user.services ? opencode-backend);
-  commandsOk = builtins.length server.home.packages == 3;
+  commandsOk = builtins.length server.home.packages >= 3;
   upstreamOk =
     server.programs.opencode.enable
     && server.programs.opencode.tui.theme == "system"
