@@ -26,7 +26,7 @@ stdenvNoCC.mkDerivation {
   dontBuild = true;
   unpackPhase = ''
     runHook preUnpack
-    if [[ "$src" == *.zip ]]; then
+    if ${if stdenv.isDarwin then "true" else "false"}; then
       unzip -q "$src"
     else
       tar -xzf "$src"
