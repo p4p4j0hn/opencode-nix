@@ -8,9 +8,9 @@ permissions:
 jobs:
   verify:
     name: release-policy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Verify automated release integrity
         env:
           GH_TOKEN: ${{ github.token }}
@@ -20,7 +20,7 @@ jobs:
     name: enable-safe-auto-merge
     needs: verify
     if: ${{ github.event.pull_request.head.ref == 'automation/opencode-release' && github.event.pull_request.head.repo.full_name == github.repository && vars.RELEASE_AUTOMERGE_ENABLED == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Verify main branch required checks
         env:
@@ -42,7 +42,7 @@ jobs:
           PY
       - name: Generate merge app token
         id: app
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}

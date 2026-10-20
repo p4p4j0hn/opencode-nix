@@ -10,10 +10,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-24.04, macos-latest]
     runs-on: ${{ matrix.os }}
+    name: nix (${{ matrix.os == 'ubuntu-24.04' && 'ubuntu-latest' || matrix.os }})
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Determine whether upstream binaries are initialized
         id: bootstrap
         shell: bash
@@ -34,4 +35,17 @@ jobs:
         run: nix flake check --show-trace
       - name: Check OpenCode executable
         if: steps.bootstrap.outputs.ready == 'true'
+        run: nix run . -- --version
+  ubuntu26-compat:
+    name: ubuntu-26.04-compat
+    runs-on: ubuntu-26.04
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: cachix/install-nix-action@v31
+      - name: Validate flake on Ubuntu 26.04
+        run: nix flake check --show-trace
+      - name: Check OpenCode executable
         run: nix run . -- --version
