@@ -5,6 +5,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import tempfile
 from urllib.request import Request, urlopen
@@ -16,7 +17,14 @@ ASSETS = {
     "x86_64-darwin": "opencode-darwin-x64.zip",
     "aarch64-darwin": "opencode-darwin-arm64.zip",
 }
-API = "https://api.github.com/repos/anomalyco/opencode/releases/latest"
+API = "https://api.github.com/repos/anomalyco/opencode/releases?per_page=100"
+V2_TAG = re.compile(r"^v2\.\d+\.\d+$")
+
+def select_release(releases):
+    candidates = [release for release in releases if not release.get("prerelease") and not release.get("draft") and V2_TAG.fullmatch(release.get("tag_name", ""))]
+    if not candidates:
+        raise RuntimeError("no stable V2 release found in the latest 100 releases")
+    return max(candidates, key=lambda release: tuple(map(int, release["tag_name"][1:].split("."))))
 
 def open_url(url):
     headers = {"User-Agent": "opencode-nix-updater", "Accept": "application/vnd.github+json"}
@@ -30,7 +38,7 @@ def main():
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     with open_url(API) as response:
-        release = json.load(response)
+        release = select_release(json.load(response))
     if release.get("prerelease") or release.get("draft"):
         raise RuntimeError("latest release is not stable")
     tag = release["tag_name"]
