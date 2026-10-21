@@ -1,51 +1,47 @@
-{ lib, stdenvNoCC, fetchurl, autoPatchelfHook, unzip, makeWrapper, stdenv, glibc, gcc-unwrapped, zlib }:
+{ lib, stdenvNoCC, fetchurl, autoPatchelfHook, makeWrapper, stdenv, glibc, gcc-unwrapped, zlib }:
 let
   release = builtins.fromJSON (builtins.readFile ../version.json);
   system = stdenv.hostPlatform.system;
-  assets = {
-    x86_64-linux = "opencode-linux-x64.tar.gz";
-    aarch64-linux = "opencode-linux-arm64.tar.gz";
-    x86_64-darwin = "opencode-darwin-x64.zip";
-    aarch64-darwin = "opencode-darwin-arm64.zip";
+  packages = {
+    x86_64-linux = "cli-linux-x64";
+    aarch64-linux = "cli-linux-arm64";
+    x86_64-darwin = "cli-darwin-x64";
+    aarch64-darwin = "cli-darwin-arm64";
   };
   hash = release.hashes.${system} or "";
 in
-assert lib.assertMsg (hash != "") "opencode-nix: run update workflow to bootstrap version.json first";
+assert lib.assertMsg (hash != "") "opencode-nix: no hash for platform";
+assert lib.assertMsg (lib.hasPrefix "2." release.version) "opencode-nix: run V2 update workflow to update version.json";
 stdenvNoCC.mkDerivation {
   pname = "opencode";
   version = release.version;
   src = fetchurl {
-    url = "https://github.com/anomalyco/opencode/releases/download/v${release.version}/${assets.${system}}";
+    url = "https://registry.npmjs.org/@opencode/${packages.${system}}/-/${packages.${system}}-${release.version}.tgz";
     inherit hash;
   };
-  nativeBuildInputs = [ makeWrapper ] ++ lib.optionals stdenv.isLinux [ autoPatchelfHook ]
-    ++ lib.optionals stdenv.isDarwin [ unzip ];
+  nativeBuildInputs = [ makeWrapper ] ++ lib.optionals stdenv.isLinux [ autoPatchelfHook ];
   buildInputs = lib.optionals stdenv.isLinux [ glibc gcc-unwrapped.lib zlib ];
   sourceRoot = ".";
   dontConfigure = true;
   dontBuild = true;
   unpackPhase = ''
     runHook preUnpack
-    if ${if stdenv.isDarwin then "true" else "false"}; then
-      unzip -q "$src"
-    else
-      tar -xzf "$src"
-    fi
+    tar -xzf "$src"
     runHook postUnpack
   '';
   installPhase = ''
     runHook preInstall
     mkdir -p "$out/bin"
-    binary="$(find . -type f -name opencode | head -n 1)"
+    binary="$(find package -type f -name opencode | head -n 1)"
     test -n "$binary"
     install -m755 "$binary" "$out/bin/opencode"
     runHook postInstall
   '';
   meta = {
-    description = "OpenCode AI coding agent, official upstream binary";
+    description = "OpenCode V2 official prebuilt npm binary";
     homepage = "https://opencode.ai";
     license = lib.licenses.mit;
     mainProgram = "opencode";
-    platforms = builtins.attrNames assets;
+    platforms = builtins.attrNames packages;
   };
 }
