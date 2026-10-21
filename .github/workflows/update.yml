@@ -25,7 +25,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/update-version.py
+      - name: Commit V2 hashes to migration branch
+        if: github.ref_name == 'feature/opencode-v2'
+        env:
+          PUSH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "chore: pin verified OpenCode V2 binaries"
+          git -c http.extraheader="AUTHORIZATION: basic $(printf "x-access-token:%s" "$PUSH_TOKEN" | base64 -w0)" push origin HEAD:feature/opencode-v2
       - name: Open update pull request
+        if: github.ref_name != 'feature/opencode-v2'
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.app.outputs.token || github.token }}
