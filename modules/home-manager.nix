@@ -99,39 +99,37 @@ in
       default = { };
       description = "Named remote OpenCode backends, exposed as opencode-<name> commands.";
       type = types.attrsOf (
-        types.submodule (
-          _: {
+        types.submodule (_: {
             options = {
-              transport = mkOption {
-                type = types.enum [
-                  "direct"
-                  "ssh"
-                ];
-                default = "ssh";
-                description = "Direct HTTP (only on trusted networks) or an SSH local-port forward.";
-              };
-              url = mkOption {
-                type = types.nullOr types.str;
-                default = null;
-                description = "Complete HTTP(S) URL for direct transport.";
-              };
-              sshTarget = mkOption {
-                type = types.nullOr types.str;
-                default = null;
-                description = "OpenSSH host alias or user@host for SSH transport.";
-              };
-              remotePort = mkOption {
-                type = types.port;
-                default = 4096;
-              };
-              localPort = mkOption {
-                type = types.port;
-                default = 4096;
-                description = "Local loopback listener for this SSH tunnel; unique per connection.";
-              };
-            };
-          }
-        )
+            transport = mkOption {
+              type = types.enum [
+                "direct"
+                "ssh"
+              ];
+              default = "ssh";
+              description = "Direct HTTP (only on trusted networks) or an SSH local-port forward.";
+          };
+            url = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Complete HTTP(S) URL for direct transport.";
+          };
+            sshTarget = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "OpenSSH host alias or user@host for SSH transport.";
+          };
+            remotePort = mkOption {
+              type = types.port;
+              default = 4096;
+          };
+            localPort = mkOption {
+              type = types.port;
+              default = 4096;
+              description = "Local loopback listener for this SSH tunnel; unique per connection.";
+          };
+          };
+        })
       );
     };
     recoverySkill.enable = mkOption {
