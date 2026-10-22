@@ -10,10 +10,12 @@ let
       inherit pkgs;
       modules = [
         module
-        ({ ... }: {
-          home.username = "ci";
-          home.homeDirectory = "/home/ci";
-          home.stateVersion = "25.11";
+        (_: {
+          home = {
+            username = "ci";
+            homeDirectory = "/home/ci";
+            stateVersion = "25.11";
+          };
           programs.opencode-nix = {
             enable = true;
             backend.enable = true;
