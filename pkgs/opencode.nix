@@ -24,6 +24,8 @@ stdenvNoCC.mkDerivation {
   sourceRoot = ".";
   dontConfigure = true;
   dontBuild = true;
+  # Bun standalone executables contain appended application data that stripping removes.
+  dontStrip = true;
   unpackPhase = ''
     runHook preUnpack
     tar -xzf "$src"
