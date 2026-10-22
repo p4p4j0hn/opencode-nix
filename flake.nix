@@ -17,6 +17,7 @@
         default = packageFor pkgs;
         opencode = packageFor pkgs;
       });
+      formatter = eachSystem (pkgs: pkgs.nixfmt-tree);
       apps = eachSystem (pkgs: {
         default = {
           type = "app";
