@@ -36,6 +36,14 @@ jobs:
       - name: Check OpenCode executable
         if: steps.bootstrap.outputs.ready == 'true'
         run: nix run . -- --version
+      - name: Runtime integration tests (isolated OpenCode server)
+        if: steps.bootstrap.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="$(nix build --no-link --print-out-paths .#default)"
+          export OPENCODE_BIN="$package/bin/opencode"
+          python3 -m unittest discover -s tests -p 'test_backend_integration.py' -v
   ubuntu26-compat:
     name: ubuntu-26.04-compat
     runs-on: ubuntu-26.04
