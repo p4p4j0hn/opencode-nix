@@ -51,7 +51,9 @@ if (
     raise SystemExit("Automated PRs must modify only version.json.")
 with open("version.json", encoding="utf-8") as f:
     version = json.load(f)
-if set(version) != {"version", "hashes"} or set(version["hashes"]) != set(SYSTEM_ASSETS):
+if set(version) != {"version", "hashes"} or set(version["hashes"]) != set(
+    SYSTEM_ASSETS
+):
     raise SystemExit("Unexpected version.json schema.")
 tag = "v" + version["version"]
 if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag):
