@@ -25,7 +25,7 @@ assert lib.assertMsg (lib.hasPrefix "2." release.version)
   "opencode-nix: run V2 update workflow to update version.json";
 stdenvNoCC.mkDerivation {
   pname = "opencode";
-  version = release.version;
+  inherit (release) version;
   src = fetchurl {
     url = "https://registry.npmjs.org/@opencode/${packages.${system}}/-/${packages.${system}}-${release.version}.tgz";
     inherit hash;
