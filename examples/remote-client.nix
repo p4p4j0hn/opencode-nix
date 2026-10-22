@@ -1,5 +1,5 @@
 # Import inputs.opencode-nix.homeManagerModules.default in your HM modules.
-{ ... }: {
+_: {
   programs.opencode-nix = {
     enable = true;
     backend.enable = false;
