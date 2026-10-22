@@ -16,7 +16,10 @@ class UpdateVersionTests(unittest.TestCase):
             {"x86_64-linux", "aarch64-linux", "x86_64-darwin", "aarch64-darwin"},
         )
         self.assertTrue(
-            all(package.startswith("@opencode/cli-") for package in updater.PACKAGES.values())
+            all(
+                package.startswith("@opencode/cli-")
+                for package in updater.PACKAGES.values()
+            )
         )
 
     def test_registry_target_is_npm(self):
