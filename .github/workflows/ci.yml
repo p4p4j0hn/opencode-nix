@@ -37,7 +37,7 @@ jobs:
           set -euo pipefail
           nix develop --command bash -c '
             # Run all checks and preserve their exit codes so every diagnostic is shown.
-            treefmt --ci
+            nix fmt -- --ci .
             nix_status=$?
             git diff -- "*.nix"
             black --check --diff .
