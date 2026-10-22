@@ -24,6 +24,7 @@ def open_url(url):
     headers = {"User-Agent": "opencode-nix-updater"}
     return urlopen(Request(url, headers=headers), timeout=120)
 
+
 def get_metadata(package, version):
     with open_url(f"{REGISTRY}/{quote(package, safe='')}/{version}") as response:
         return json.load(response)
