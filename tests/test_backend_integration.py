@@ -37,6 +37,7 @@ class Backend:
         self.password = password
         self.config = config or {}
         self.process = None
+        self._last_stderr = b""
         self.root.mkdir(parents=True, exist_ok=True)
         self.config_dir = self.root / "config" / "opencode"
         self.config_dir.mkdir(parents=True, exist_ok=True)
@@ -65,7 +66,8 @@ class Backend:
             [os.environ["OPENCODE_BIN"], "serve", "--hostname", "127.0.0.1", "--port", str(port)],
             env=self.env, cwd=self.root, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
         )
-        deadline = time.monotonic() + 35
+        deadline = time.monotonic() + 20
+        observations = []
         while time.monotonic() < deadline:
             if self.process.poll() is not None:
                 raise AssertionError(f"OpenCode exited early ({self.process.returncode}): {self.process.stderr.read()[-3000:]!r}")
@@ -73,23 +75,26 @@ class Backend:
                 code, health = request(self.base, "/api/health", password=self.password)
                 if code == 200 and isinstance(health, dict):
                     return self
-            except (HTTPError, URLError, TimeoutError, ValueError):
-                pass
+            except HTTPError as error:
+                observations.append(f"HTTP {error.code}: {error.read(300)!r}")
+            except (URLError, TimeoutError, ValueError) as error:
+                observations.append(f"{type(error).__name__}: {str(error)[:200]}")
             time.sleep(0.25)
         self.stop()
-        raise AssertionError(f"OpenCode failed V2 /api/health check within 35 seconds at {self.base}")
+        log = (self._last_stderr or b"")[-3000:].decode("utf-8", "replace")
+        raise AssertionError(f"OpenCode health check failed at {self.base}; probes={observations[-5:]}; stderr={log}")
 
     def stop(self):
         if self.process is not None:
             if self.process.poll() is None:
                 self.process.terminate()
                 try:
-                    self.process.communicate(timeout=8)
+                    _, self._last_stderr = self.process.communicate(timeout=8)
                 except subprocess.TimeoutExpired:
                     self.process.kill()
-                    self.process.communicate(timeout=5)
+                    _, self._last_stderr = self.process.communicate(timeout=5)
             else:
-                self.process.communicate()
+                _, self._last_stderr = self.process.communicate()
             self.process = None
 
 
