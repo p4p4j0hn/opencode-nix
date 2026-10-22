@@ -1,47 +1,61 @@
-{ pkgs, home-manager, module }:
+{
+  pkgs,
+  home-manager,
+  module,
+}:
 let
-  makeHome = options: (home-manager.lib.homeManagerConfiguration {
-    inherit pkgs;
-    modules = [
-      module
-      ({ ... }: {
-        home.username = "ci";
-        home.homeDirectory = "/home/ci";
-        home.stateVersion = "25.11";
-        programs.opencode-nix = {
-          enable = true;
-          backend.enable = true;
-          backend.port = 4096;
-          tui.theme = "system";
-          context = "Test global context";
-          commands.audit = "Audit the changes";
-          agents.reviewer = "Review code";
-          skills.sample = "Sample skill";
-          themes.custom = { primary = "#123456"; };
-          tools.example = "export default {}";
-          extraPackages = [ pkgs.git ];
-          enableMcpIntegration = true;
-          client.connections = {
-            lab = {
-              transport = "ssh";
-              sshTarget = "builder.internal";
-              localPort = 14096;
+  makeHome =
+    options:
+    (home-manager.lib.homeManagerConfiguration {
+      inherit pkgs;
+      modules = [
+        module
+        ({ ... }: {
+          home.username = "ci";
+          home.homeDirectory = "/home/ci";
+          home.stateVersion = "25.11";
+          programs.opencode-nix = {
+            enable = true;
+            backend.enable = true;
+            backend.port = 4096;
+            tui.theme = "system";
+            context = "Test global context";
+            commands.audit = "Audit the changes";
+            agents.reviewer = "Review code";
+            skills.sample = "Sample skill";
+            themes.custom = {
+              primary = "#123456";
             };
-            direct = {
-              transport = "direct";
-              url = "https://code.internal";
+            tools.example = "export default {}";
+            extraPackages = [ pkgs.git ];
+            enableMcpIntegration = true;
+            client.connections = {
+              lab = {
+                transport = "ssh";
+                sshTarget = "builder.internal";
+                localPort = 14096;
+              };
+              direct = {
+                transport = "direct";
+                url = "https://code.internal";
+              };
             };
-          };
-        } // options;
-      })
-    ];
-  }).config;
-  server = makeHome {};
+          }
+          // options;
+        })
+      ];
+    }).config;
+  server = makeHome { };
   client = makeHome { backend.enable = false; };
-  takeoverServer = makeHome { backend = { enable = true; takeover.enable = true; }; };
-  backendLinuxAssertion = builtins.any (item:
-    item.message == "OpenCode systemd backend requires Linux."
-    && item.assertion == pkgs.stdenv.isLinux
+  takeoverServer = makeHome {
+    backend = {
+      enable = true;
+      takeover.enable = true;
+    };
+  };
+  backendLinuxAssertion = builtins.any (
+    item:
+    item.message == "OpenCode systemd backend requires Linux." && item.assertion == pkgs.stdenv.isLinux
   ) server.assertions;
   service = server.systemd.user.services.opencode-backend.Service;
   tunnel = server.systemd.user.services.opencode-tunnel-lab.Service;
@@ -55,8 +69,11 @@ let
   disabledOk = !(client.systemd.user.services ? opencode-backend);
   takeoverOk =
     builtins.length takeoverServer.systemd.user.services.opencode-backend.Service.ExecStartPre == 1
-    && builtins.match ".*takeover.*--port 4096.*" (builtins.head takeoverServer.systemd.user.services.opencode-backend.Service.ExecStartPre) != null
-    && server.systemd.user.services.opencode-backend.Service.ExecStartPre == [];
+    &&
+      builtins.match ".*takeover.*--port 4096.*" (
+        builtins.head takeoverServer.systemd.user.services.opencode-backend.Service.ExecStartPre
+      ) != null
+    && server.systemd.user.services.opencode-backend.Service.ExecStartPre == [ ];
   commandsOk = builtins.length server.home.packages >= 3;
   upstreamOk =
     server.programs.opencode.enable
