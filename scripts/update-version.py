@@ -74,5 +74,6 @@ def main():
     os.replace(temp, target)
     print("Updated", target, "to", version)
 
+
 if __name__ == "__main__":
     main()
