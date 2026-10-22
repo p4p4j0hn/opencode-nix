@@ -5,17 +5,19 @@ Fail closed if an unknown process owns the port. Linux only: uses /proc and lsof
 """
 import argparse
 import os
-from pathlib import Path
 import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 
 def listening_pids(port):
     result = subprocess.run(
         [os.environ.get("OPENCODE_LSOF", "lsof"), "-nP", "-t", "-sTCP:LISTEN", f"-iTCP:{port}"],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     if result.returncode not in (0, 1):
         raise RuntimeError(f"lsof failed (exit {result.returncode}): {result.stderr.strip()}")
