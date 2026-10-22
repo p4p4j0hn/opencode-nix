@@ -70,14 +70,14 @@ class Backend:
             if self.process.poll() is not None:
                 raise AssertionError(f"OpenCode exited early ({self.process.returncode}): {self.process.stderr.read()[-3000:]!r}")
             try:
-                code, health = request(self.base, "/global/health", password=self.password)
+                code, health = request(self.base, "/api/health", password=self.password)
                 if code == 200 and isinstance(health, dict):
                     return self
             except (HTTPError, URLError, TimeoutError, ValueError):
                 pass
             time.sleep(0.25)
         self.stop()
-        raise AssertionError("OpenCode failed health check within 35 seconds")
+        raise AssertionError(f"OpenCode failed V2 /api/health check within 35 seconds at {self.base}")
 
     def stop(self):
         if self.process is not None:
@@ -107,11 +107,12 @@ class BackendIntegrationTests(unittest.TestCase):
 
     def test_health_and_config(self):
         server = self.launch(config={"compaction": {"auto": True, "keep": {"tokens": 24000}, "buffer": 24000}})
-        status, health = request(server.base, "/global/health")
+        status, health = request(server.base, "/api/health")
         self.assertEqual(status, 200)
         self.assertIsInstance(health, dict)
-        status, cfg = request(server.base, "/config")
+        status, cfg = request(server.base, "/api/config")
         self.assertEqual(status, 200)
+        cfg = cfg.get("data", cfg)
         self.assertTrue(cfg["compaction"]["auto"])
         self.assertEqual(cfg["compaction"]["keep"]["tokens"], 24000)
         self.assertEqual(cfg["compaction"]["buffer"], 24000)
@@ -119,23 +120,23 @@ class BackendIntegrationTests(unittest.TestCase):
     def test_password_protection(self):
         server = self.launch(password="integration-test-password")
         with self.assertRaises(HTTPError) as e:
-            request(server.base, "/config")
+            request(server.base, "/api/config")
         self.assertEqual(e.exception.code, 401)
-        code, config = request(server.base, "/config", password=server.password)
+        code, config = request(server.base, "/api/config", password=server.password)
         self.assertEqual(code, 200)
         self.assertIsInstance(config, dict)
 
     def test_session_survives_backend_restart(self):
         server = self.launch()
-        status, session = request(server.base, "/session", method="POST", payload={"title": "restart-test"})
+        status, session = request(server.base, "/api/session", method="POST", payload={"title": "restart-test"})
         self.assertIn(status, (200, 201))
         self.assertIsInstance(session, dict)
-        session_id = session["id"]
+        session_id = session.get("data", session)["id"]
         server.stop()
         server.start()
-        status, restored = request(server.base, "/session/" + session_id)
+        status, restored = request(server.base, "/api/session/" + session_id)
         self.assertEqual(status, 200)
-        self.assertEqual(restored["id"], session_id)
+        self.assertEqual(restored.get("data", restored)["id"], session_id)
 
 
 if __name__ == "__main__":
