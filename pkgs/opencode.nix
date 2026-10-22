@@ -1,4 +1,14 @@
-{ lib, stdenvNoCC, fetchurl, autoPatchelfHook, makeWrapper, stdenv, glibc, gcc-unwrapped, zlib }:
+{
+  lib,
+  stdenvNoCC,
+  fetchurl,
+  autoPatchelfHook,
+  makeWrapper,
+  stdenv,
+  glibc,
+  gcc-unwrapped,
+  zlib,
+}:
 let
   release = builtins.fromJSON (builtins.readFile ../version.json);
   system = stdenv.hostPlatform.system;
@@ -11,7 +21,8 @@ let
   hash = release.hashes.${system} or "";
 in
 assert lib.assertMsg (hash != "") "opencode-nix: no hash for platform";
-assert lib.assertMsg (lib.hasPrefix "2." release.version) "opencode-nix: run V2 update workflow to update version.json";
+assert lib.assertMsg (lib.hasPrefix "2." release.version)
+  "opencode-nix: run V2 update workflow to update version.json";
 stdenvNoCC.mkDerivation {
   pname = "opencode";
   version = release.version;
@@ -20,7 +31,11 @@ stdenvNoCC.mkDerivation {
     inherit hash;
   };
   nativeBuildInputs = [ makeWrapper ] ++ lib.optionals stdenv.isLinux [ autoPatchelfHook ];
-  buildInputs = lib.optionals stdenv.isLinux [ glibc gcc-unwrapped.lib zlib ];
+  buildInputs = lib.optionals stdenv.isLinux [
+    glibc
+    gcc-unwrapped.lib
+    zlib
+  ];
   sourceRoot = ".";
   dontConfigure = true;
   dontBuild = true;
