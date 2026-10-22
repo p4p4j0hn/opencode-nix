@@ -18,6 +18,11 @@
         opencode = packageFor pkgs;
       });
       formatter = eachSystem (pkgs: pkgs.nixfmt-tree);
+      devShells = eachSystem (pkgs: {
+        default = pkgs.mkShell {
+          packages = [ pkgs.nixfmt-tree pkgs.black pkgs.statix ];
+        };
+      });
       apps = eachSystem (pkgs: {
         default = {
           type = "app";
