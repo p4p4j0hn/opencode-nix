@@ -19,7 +19,6 @@ SYSTEM_ASSETS = {
 
 
 def api(url):
-    headers = {"Accept": "application/vnd.github+json", "User-Agent": "opencode-nix-release-policy"}
     if url.startswith(API + "/"):
         headers["Authorization"] = "Bearer " + TOKEN
     with urllib.request.urlopen(
