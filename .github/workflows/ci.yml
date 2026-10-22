@@ -36,9 +36,17 @@ jobs:
         run: |
           set -euo pipefail
           nix develop --command bash -c '
+            # Run all checks and preserve their exit codes so every diagnostic is shown.
             treefmt --ci
-            black --check .
+            nix_status=$?
+            git diff -- "*.nix"
+            black --check --diff .
+            black_status=$?
             statix check .
+            statix_status=$?
+            if [ "$nix_status" -ne 0 ] || [ "$black_status" -ne 0 ] || [ "$statix_status" -ne 0 ]; then
+              exit 1
+            fi
           '
       - name: Validate flake
         if: steps.bootstrap.outputs.ready == 'true'
