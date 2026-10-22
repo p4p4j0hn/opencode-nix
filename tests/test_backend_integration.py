@@ -6,12 +6,12 @@ Each test owns an isolated XDG profile and an ephemeral loopback listener.
 import base64
 import json
 import os
-from pathlib import Path
 import socket
 import subprocess
 import tempfile
 import time
 import unittest
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -61,14 +61,27 @@ class Backend:
             port = sock.getsockname()[1]
         self.base = f"http://127.0.0.1:{port}"
         self.process = subprocess.Popen(
-            [os.environ["OPENCODE_BIN"], "serve", "--hostname", "127.0.0.1", "--port", str(port)],
-            env=self.env, cwd=self.root, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+            [
+                os.environ["OPENCODE_BIN"],
+                "serve",
+                "--hostname",
+                "127.0.0.1",
+                "--port",
+                str(port),
+            ],
+            env=self.env,
+            cwd=self.root,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
         )
         deadline = time.monotonic() + 20
         observations = []
         while time.monotonic() < deadline:
             if self.process.poll() is not None:
-                raise AssertionError(f"OpenCode exited early ({self.process.returncode}): {self.process.stderr.read()[-3000:]!r}")
+                raise AssertionError(
+                    f"OpenCode exited early ({self.process.returncode}): "
+                    f"{self.process.stderr.read()[-3000:]!r}"
+                )
             try:
                 code, health = request(self.base, "/api/info", password=self.password)
                 if code == 200 and isinstance(health, dict):
@@ -80,7 +93,10 @@ class Backend:
             time.sleep(0.25)
         self.stop()
         log = (self._last_stderr or b"")[-3000:].decode("utf-8", "replace")
-        raise AssertionError(f"OpenCode API readiness check failed at {self.base}; probes={observations[-5:]}; stderr={log}")
+        raise AssertionError(
+            f"OpenCode API readiness check failed at {self.base}; "
+            f"probes={observations[-5:]}; stderr={log}"
+        )
 
     def stop(self):
         if self.process is not None:
@@ -96,7 +112,9 @@ class Backend:
             self.process = None
 
 
-@unittest.skipUnless(os.environ.get("OPENCODE_BIN"), "Set OPENCODE_BIN to the packaged executable")
+@unittest.skipUnless(
+    os.environ.get("OPENCODE_BIN"), "Set OPENCODE_BIN to the packaged executable"
+)
 class BackendIntegrationTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="opencode-v2-test-")
@@ -109,7 +127,9 @@ class BackendIntegrationTests(unittest.TestCase):
         return self.backend
 
     def test_health_and_config(self):
-        server = self.launch(config={"compaction": {"auto": True, "keep": {"tokens": 24000}, "buffer": 24000}})
+        server = self.launch(
+            config={"compaction": {"auto": True, "keep": {"tokens": 24000}, "buffer": 24000}}
+        )
         status, health = request(server.base, "/api/info", password=server.password)
         self.assertEqual(status, 200)
         self.assertIsInstance(health, dict)
@@ -129,13 +149,21 @@ class BackendIntegrationTests(unittest.TestCase):
 
     def test_session_survives_backend_restart(self):
         server = self.launch()
-        status, session = request(server.base, "/api/session", method="POST", payload={"title": "restart-test"}, password=server.password)
+        status, session = request(
+            server.base,
+            "/api/session",
+            method="POST",
+            payload={"title": "restart-test"},
+            password=server.password,
+        )
         self.assertIn(status, (200, 201))
         self.assertIsInstance(session, dict)
         session_id = session.get("data", session)["id"]
         server.stop()
         server.start()
-        status, restored = request(server.base, "/api/session/" + session_id, password=server.password)
+        status, restored = request(
+            server.base, "/api/session/" + session_id, password=server.password
+        )
         self.assertEqual(status, 200)
         self.assertEqual(restored.get("data", restored)["id"], session_id)
 
