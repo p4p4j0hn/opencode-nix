@@ -35,8 +35,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          nix fmt -- --ci
-          nix shell nixpkgs#black nixpkgs#statix -c bash -c '
+          nix develop --command bash -c '
+            treefmt --ci
             black --check .
             statix check .
           '
