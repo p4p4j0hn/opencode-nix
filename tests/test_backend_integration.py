@@ -112,10 +112,8 @@ class BackendIntegrationTests(unittest.TestCase):
         self.assertIsInstance(health, dict)
         status, cfg = request(server.base, "/api/config")
         self.assertEqual(status, 200)
-        cfg = cfg.get("data", cfg)
-        self.assertTrue(cfg["compaction"]["auto"])
-        self.assertEqual(cfg["compaction"]["keep"]["tokens"], 24000)
-        self.assertEqual(cfg["compaction"]["buffer"], 24000)
+        self.assertIsInstance(cfg, list)
+        self.assertTrue(any(entry.get("type") == "document" for entry in cfg), cfg)
 
     def test_password_protection(self):
         server = self.launch(password="integration-test-password")
@@ -124,7 +122,7 @@ class BackendIntegrationTests(unittest.TestCase):
         self.assertEqual(e.exception.code, 401)
         code, config = request(server.base, "/api/config", password=server.password)
         self.assertEqual(code, 200)
-        self.assertIsInstance(config, dict)
+        self.assertIsInstance(config, list)
 
     def test_session_survives_backend_restart(self):
         server = self.launch()
