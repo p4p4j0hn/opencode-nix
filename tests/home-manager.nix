@@ -39,6 +39,10 @@ let
   server = makeHome {};
   client = makeHome { backend.enable = false; };
   takeoverServer = makeHome { backend = { enable = true; takeover.enable = true; }; };
+  backendLinuxAssertion = builtins.any (item:
+    item.message == "OpenCode systemd backend requires Linux."
+    && item.assertion == pkgs.stdenv.isLinux
+  ) server.assertions;
   service = server.systemd.user.services.opencode-backend.Service;
   tunnel = server.systemd.user.services.opencode-tunnel-lab.Service;
   serviceOk =
@@ -67,6 +71,7 @@ let
     && server.programs.opencode.enableMcpIntegration
     && builtins.length server.programs.opencode.extraPackages == 1;
 in
+assert backendLinuxAssertion;
 assert serviceOk;
 assert tunnelOk;
 assert disabledOk;
