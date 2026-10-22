@@ -101,6 +101,9 @@ in {
   };
   config = mkIf cfg.enable {
     assertions = [{
+      assertion = !cfg.backend.enable || pkgs.stdenv.isLinux;
+      message = "OpenCode systemd backend requires Linux.";
+    } {
       assertion = !cfg.backend.takeover.enable || pkgs.stdenv.isLinux;
       message = "OpenCode takeover requires Linux.";
     }] ++ lib.mapAttrsToList (name: connection: {
