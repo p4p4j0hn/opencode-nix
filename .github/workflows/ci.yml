@@ -35,7 +35,9 @@ jobs:
         run: nix flake check --show-trace
       - name: Check OpenCode executable
         if: steps.bootstrap.outputs.ready == 'true'
-        run: nix run . -- --version
+        run: |
+          nix run . -- --version
+          nix run . -- --help | grep -q serve
       - name: Runtime integration tests (isolated OpenCode server)
         if: steps.bootstrap.outputs.ready == 'true'
         shell: bash
