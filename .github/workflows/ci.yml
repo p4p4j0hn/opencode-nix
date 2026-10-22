@@ -30,6 +30,16 @@ jobs:
         run: echo "Binary hashes not initialized yet. Run the Update OpenCode binaries workflow, then merge its PR."
       - uses: cachix/install-nix-action@v31
         if: steps.bootstrap.outputs.ready == 'true'
+      - name: Check Nix formatting and Python formatting and Nix lint
+        if: steps.bootstrap.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          nix fmt -- --ci
+          nix shell nixpkgs#black nixpkgs#statix -c bash -c '
+            black --check .
+            statix check .
+          '
       - name: Validate flake
         if: steps.bootstrap.outputs.ready == 'true'
         run: nix flake check --show-trace
