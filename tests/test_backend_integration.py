@@ -110,7 +110,7 @@ class BackendIntegrationTests(unittest.TestCase):
 
     def test_health_and_config(self):
         server = self.launch(config={"compaction": {"auto": True, "keep": {"tokens": 24000}, "buffer": 24000}})
-        status, health = request(server.base, "/api/health")
+        status, health = request(server.base, "/api/info", password=server.password)
         self.assertEqual(status, 200)
         self.assertIsInstance(health, dict)
         status, cfg = request(server.base, "/api/config", password=server.password)
