@@ -100,7 +100,7 @@ in
       description = "Named remote OpenCode backends, exposed as opencode-<name> commands.";
       type = types.attrsOf (
         types.submodule (
-          { ... }: {
+          _: {
             options = {
               transport = mkOption {
                 type = types.enum [
@@ -175,8 +175,7 @@ in
     ];
     programs.opencode = {
       enable = true;
-      package = cfg.package;
-      settings = cfg.settings;
+      inherit (cfg) package settings;
       skills.compaction-recovery = mkIf cfg.recoverySkill.enable ../skills/compaction-recovery/SKILL.md;
     };
     home.packages = lib.mapAttrsToList attachCommand connections;
