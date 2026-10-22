@@ -1,44 +1,64 @@
-{ pkgs, home-manager, module }:
+{
+  pkgs,
+  home-manager,
+  module,
+}:
 let
-  makeHome = options: (home-manager.lib.homeManagerConfiguration {
-    inherit pkgs;
-    modules = [
-      module
-      ({ ... }: {
-        home.username = "ci";
-        home.homeDirectory = "/home/ci";
-        home.stateVersion = "25.11";
-        programs.opencode-nix = {
-          enable = true;
-          backend.enable = true;
-          backend.port = 4096;
-          tui.theme = "system";
-          context = "Test global context";
-          commands.audit = "Audit the changes";
-          agents.reviewer = "Review code";
-          skills.sample = "Sample skill";
-          themes.custom = { primary = "#123456"; };
-          tools.example = "export default {}";
-          extraPackages = [ pkgs.git ];
-          enableMcpIntegration = true;
-          client.connections = {
-            lab = {
-              transport = "ssh";
-              sshTarget = "builder.internal";
-              localPort = 14096;
-            };
-            direct = {
-              transport = "direct";
-              url = "https://code.internal";
-            };
+  makeHome =
+    options:
+    (home-manager.lib.homeManagerConfiguration {
+      inherit pkgs;
+      modules = [
+        module
+        (_: {
+          home = {
+            username = "ci";
+            homeDirectory = "/home/ci";
+            stateVersion = "25.11";
           };
-        } // options;
-      })
-    ];
-  }).config;
-  server = makeHome {};
+          programs.opencode-nix = {
+            enable = true;
+            backend.enable = true;
+            backend.port = 4096;
+            tui.theme = "system";
+            context = "Test global context";
+            commands.audit = "Audit the changes";
+            agents.reviewer = "Review code";
+            skills.sample = "Sample skill";
+            themes.custom = {
+              primary = "#123456";
+            };
+            tools.example = "export default {}";
+            extraPackages = [ pkgs.git ];
+            enableMcpIntegration = true;
+            client.connections = {
+              lab = {
+                transport = "ssh";
+                sshTarget = "builder.internal";
+                localPort = 14096;
+              };
+              direct = {
+                transport = "direct";
+                url = "https://code.internal";
+              };
+            };
+          }
+          // options;
+        })
+      ];
+    }).config;
+  server = makeHome { };
   client = makeHome { backend.enable = false; };
-  takeoverServer = makeHome { backend = { enable = true; takeover.enable = true; }; };
+  takeoverServer = makeHome {
+    backend = {
+      enable = true;
+      takeover.enable = true;
+    };
+  };
+  backendLinuxAssertion = builtins.any (
+    item:
+    item.message == "OpenCode systemd backend requires Linux." && item.assertion == pkgs.stdenv.isLinux
+  ) server.assertions;
   service = server.systemd.user.services.opencode-backend.Service;
   tunnel = server.systemd.user.services.opencode-tunnel-lab.Service;
   serviceOk =
@@ -51,8 +71,11 @@ let
   disabledOk = !(client.systemd.user.services ? opencode-backend);
   takeoverOk =
     builtins.length takeoverServer.systemd.user.services.opencode-backend.Service.ExecStartPre == 1
-    && builtins.match ".*takeover.*--port 4096.*" (builtins.head takeoverServer.systemd.user.services.opencode-backend.Service.ExecStartPre) != null
-    && server.systemd.user.services.opencode-backend.Service.ExecStartPre == [];
+    &&
+      builtins.match ".*takeover.*--port 4096.*" (
+        builtins.head takeoverServer.systemd.user.services.opencode-backend.Service.ExecStartPre
+      ) != null
+    && server.systemd.user.services.opencode-backend.Service.ExecStartPre == [ ];
   commandsOk = builtins.length server.home.packages >= 3;
   upstreamOk =
     server.programs.opencode.enable
@@ -67,6 +90,7 @@ let
     && server.programs.opencode.enableMcpIntegration
     && builtins.length server.programs.opencode.extraPackages == 1;
 in
+assert backendLinuxAssertion;
 assert serviceOk;
 assert tunnelOk;
 assert disabledOk;

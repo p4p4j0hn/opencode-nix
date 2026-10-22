@@ -7,15 +7,37 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, home-manager, ... }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      home-manager,
+      ...
+    }:
     let
-      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
       eachSystem = f: nixpkgs.lib.genAttrs systems (system: f (import nixpkgs { inherit system; }));
-      packageFor = pkgs: pkgs.callPackage ./pkgs/opencode.nix {};
-    in {
+      packageFor = pkgs: pkgs.callPackage ./pkgs/opencode.nix { };
+    in
+    {
       packages = eachSystem (pkgs: {
         default = packageFor pkgs;
         opencode = packageFor pkgs;
+      });
+      formatter = eachSystem (pkgs: pkgs.nixfmt-tree);
+      devShells = eachSystem (pkgs: {
+        default = pkgs.mkShell {
+          packages = [
+            pkgs.nixfmt-tree
+            pkgs.black
+            pkgs.statix
+          ];
+        };
       });
       apps = eachSystem (pkgs: {
         default = {
@@ -28,22 +50,28 @@
       };
       homeManagerModules.default = import ./modules/home-manager.nix self;
       homeManagerModules.opencode = self.homeManagerModules.default;
-      checks = eachSystem (pkgs:
+      checks = eachSystem (
+        pkgs:
         {
           package = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
-        } // nixpkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
-          takeover-unit-tests = pkgs.runCommand "opencode-takeover-unit-tests" {
-            nativeBuildInputs = [ pkgs.python3 ];
-            src = ./.;
-          } ''
-            cd "$src"
-            python3 -m unittest discover -s tests -p 'test_*.py' -v
-            touch "$out"
-          '';
+        }
+        // nixpkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+          takeover-unit-tests =
+            pkgs.runCommand "opencode-takeover-unit-tests"
+              {
+                nativeBuildInputs = [ pkgs.python3 ];
+                src = ./.;
+              }
+              ''
+                cd "$src"
+                python3 -m unittest discover -s tests -p 'test_*.py' -v
+                touch "$out"
+              '';
           home-manager-module = import ./tests/home-manager.nix {
             inherit pkgs home-manager;
             module = self.homeManagerModules.default;
           };
-        });
+        }
+      );
     };
 }

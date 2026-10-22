@@ -5,20 +5,30 @@ Fail closed if an unknown process owns the port. Linux only: uses /proc and lsof
 """
 import argparse
 import os
-from pathlib import Path
 import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 
 def listening_pids(port):
     result = subprocess.run(
-        [os.environ.get("OPENCODE_LSOF", "lsof"), "-nP", "-t", "-sTCP:LISTEN", f"-iTCP:{port}"],
-        capture_output=True, text=True, check=False,
+        [
+            os.environ.get("OPENCODE_LSOF", "lsof"),
+            "-nP",
+            "-t",
+            "-sTCP:LISTEN",
+            f"-iTCP:{port}",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
     )
     if result.returncode not in (0, 1):
-        raise RuntimeError(f"lsof failed (exit {result.returncode}): {result.stderr.strip()}")
+        raise RuntimeError(
+            f"lsof failed (exit {result.returncode}): {result.stderr.strip()}"
+        )
     return {int(s) for s in result.stdout.splitlines() if s.isdigit()}
 
 
@@ -28,9 +38,13 @@ def opencode_server(pid, port):
     try:
         if proc.stat().st_uid != os.geteuid():
             return False
-        argv = (proc / "cmdline").read_bytes().rstrip(b"\0").decode(
-            "utf-8", errors="replace"
-        ).split("\0")
+        argv = (
+            (proc / "cmdline")
+            .read_bytes()
+            .rstrip(b"\0")
+            .decode("utf-8", errors="replace")
+            .split("\0")
+        )
     except (FileNotFoundError, ProcessLookupError, PermissionError):
         return False
     if not argv or "opencode" not in Path(argv[0]).name.lower():

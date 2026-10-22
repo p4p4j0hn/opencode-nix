@@ -10,9 +10,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-latest]
+        os: [ubuntu-26.04, macos-latest]
     runs-on: ${{ matrix.os }}
-    name: nix (${{ matrix.os == 'ubuntu-24.04' && 'ubuntu-latest' || matrix.os }})
+    name: nix (${{ matrix.os }})
     steps:
       - uses: actions/checkout@v6
       - name: Determine whether upstream binaries are initialized
@@ -30,22 +30,37 @@ jobs:
         run: echo "Binary hashes not initialized yet. Run the Update OpenCode binaries workflow, then merge its PR."
       - uses: cachix/install-nix-action@v31
         if: steps.bootstrap.outputs.ready == 'true'
+      - name: Check Nix formatting and Python formatting and Nix lint
+        if: steps.bootstrap.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          nix develop --command bash -c '
+            # Run all checks and preserve their exit codes so every diagnostic is shown.
+            nix fmt -- --ci .
+            nix_status=$?
+            git diff -- "*.nix"
+            black --check --diff .
+            black_status=$?
+            statix check .
+            statix_status=$?
+            if [ "$nix_status" -ne 0 ] || [ "$black_status" -ne 0 ] || [ "$statix_status" -ne 0 ]; then
+              exit 1
+            fi
+          '
       - name: Validate flake
         if: steps.bootstrap.outputs.ready == 'true'
         run: nix flake check --show-trace
       - name: Check OpenCode executable
         if: steps.bootstrap.outputs.ready == 'true'
-        run: nix run . -- --version
-  ubuntu26-compat:
-    name: ubuntu-26.04-compat
-    runs-on: ubuntu-26.04
-    continue-on-error: true
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v6
-      - uses: cachix/install-nix-action@v31
-      - name: Validate flake on Ubuntu 26.04
-        run: nix flake check --show-trace
-      - name: Check OpenCode executable
-        run: nix run . -- --version
+        run: |
+          nix run . -- --version
+          nix run . -- --help | grep -q serve
+      - name: Runtime integration tests (isolated OpenCode server)
+        if: steps.bootstrap.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="$(nix build --no-link --print-out-paths .#default)"
+          export OPENCODE_BIN="$package/bin/opencode"
+          python3 -m unittest discover -s tests -p 'test_backend_integration.py' -v

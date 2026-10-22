@@ -3,7 +3,11 @@
   programs.opencode-nix = {
     enable = true;
     settings = {
-      compaction = { auto = true; prune = false; reserved = 10000; };
+      compaction = {
+        auto = true;
+        keep.tokens = 24000;
+        buffer = 24000;
+      };
     };
     backend = {
       enable = true;

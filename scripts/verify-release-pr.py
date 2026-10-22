@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Verify that a bot-generated version bump matches an official OpenCode release."""
 import base64
-import hashlib
 import json
 import os
 import re
@@ -18,12 +17,19 @@ SYSTEM_ASSETS = {
     "aarch64-darwin": "opencode-darwin-arm64.zip",
 }
 
+
 def api(url):
-    headers = {"Accept": "application/vnd.github+json", "User-Agent": "opencode-nix-release-policy"}
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "opencode-nix-release-policy",
+    }
     if url.startswith(API + "/"):
         headers["Authorization"] = "Bearer " + TOKEN
-    with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=40) as response:
+    with urllib.request.urlopen(
+        urllib.request.Request(url, headers=headers), timeout=40
+    ) as response:
         return json.load(response)
+
 
 pr = api(f"{API}/repos/{REPO}/pulls/{PR}")
 if pr["head"]["ref"] != "automation/opencode-release":
@@ -41,11 +47,17 @@ while True:
     if len(chunk) < 100:
         break
     page += 1
-if len(changed) != 1 or changed[0]["filename"] != "version.json" or changed[0]["status"] != "modified":
+if (
+    len(changed) != 1
+    or changed[0]["filename"] != "version.json"
+    or changed[0]["status"] != "modified"
+):
     raise SystemExit("Automated PRs must modify only version.json.")
 with open("version.json", encoding="utf-8") as f:
     version = json.load(f)
-if set(version) != {"version", "hashes"} or set(version["hashes"]) != set(SYSTEM_ASSETS):
+if set(version) != {"version", "hashes"} or set(version["hashes"]) != set(
+    SYSTEM_ASSETS
+):
     raise SystemExit("Unexpected version.json schema.")
 tag = "v" + version["version"]
 if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag):
