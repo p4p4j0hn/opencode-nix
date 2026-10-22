@@ -3,6 +3,7 @@
 Run with OPENCODE_BIN=/path/to/opencode python3 -m unittest tests.test_backend_integration -v
 Each test owns an isolated XDG profile and an ephemeral loopback listener.
 """
+
 import base64
 import json
 import os
@@ -128,7 +129,9 @@ class BackendIntegrationTests(unittest.TestCase):
 
     def test_health_and_config(self):
         server = self.launch(
-            config={"compaction": {"auto": True, "keep": {"tokens": 24000}, "buffer": 24000}}
+            config={
+                "compaction": {"auto": True, "keep": {"tokens": 24000}, "buffer": 24000}
+            }
         )
         status, health = request(server.base, "/api/info", password=server.password)
         self.assertEqual(status, 200)
