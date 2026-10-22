@@ -7,7 +7,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location(
-    "takeover_port", Path(__file__).resolve().parents[1] / "scripts" / "takeover-port.py"
+    "takeover_port",
+    Path(__file__).resolve().parents[1] / "scripts" / "takeover-port.py",
 )
 takeover = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(takeover)
