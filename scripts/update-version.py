@@ -5,8 +5,8 @@ import base64
 import hashlib
 import json
 import os
-from pathlib import Path
 import tempfile
+from pathlib import Path
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
@@ -19,6 +19,7 @@ PACKAGES = {
 }
 REGISTRY = "https://registry.npmjs.org"
 
+
 def open_url(url):
     headers = {"User-Agent": "opencode-nix-updater"}
     return urlopen(Request(url, headers=headers), timeout=120)
@@ -26,6 +27,7 @@ def open_url(url):
 def get_metadata(package, version):
     with open_url(f"{REGISTRY}/{quote(package, safe='')}/{version}") as response:
         return json.load(response)
+
 
 def main():
     parser = argparse.ArgumentParser()
