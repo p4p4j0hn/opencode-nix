@@ -41,8 +41,7 @@ class ReleasePolicyTests(unittest.TestCase):
         self.archive = b"fake-but-consistent-npm-archive"
         self.package_sha256 = hash_data(self.archive)
         self.package_integrity = (
-            "sha512-"
-            + base64.b64encode(hashlib.sha512(self.archive).digest()).decode()
+            "sha512-" + base64.b64encode(hashlib.sha512(self.archive).digest()).decode()
         )
         self.pins = {
             "version": self.version,
@@ -119,9 +118,7 @@ class ReleasePolicyTests(unittest.TestCase):
 
     def test_rejects_bad_npm_integrity(self):
         original = self.package_integrity
-        self.package_integrity = (
-            "sha512-" + base64.b64encode(bytes(64)).decode()
-        )
+        self.package_integrity = "sha512-" + base64.b64encode(bytes(64)).decode()
         self.archive_hashes = lambda url: (self.package_sha256, original)
         with self.assertRaisesRegex(ValueError, "npm integrity mismatch"):
             self.run_verify()
