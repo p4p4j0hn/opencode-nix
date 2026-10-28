@@ -3,7 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
-    home-manager.url = "github:nix-community/home-manager/release-26.05";
+    home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
   };
 
@@ -71,6 +71,20 @@
             inherit pkgs home-manager;
             module = self.homeManagerModules.default;
           };
+          schema-validation =
+            pkgs.runCommand "opencode-schema-validation"
+              {
+                nativeBuildInputs = [ pkgs.check-jsonschema ];
+                cliSchema = self.packages.${pkgs.stdenv.hostPlatform.system}.default.passthru.jsonschema.cli;
+                configSchema = self.packages.${pkgs.stdenv.hostPlatform.system}.default.passthru.jsonschema.config;
+              }
+              ''
+                echo '{"$schema":"https://opencode.ai/v2/cli.json","tabs":{"mode":"auto"}}' > cli.json
+                echo '{"$schema":"https://opencode.ai/config.json","model":"example/model"}' > config.json
+                check-jsonschema --schemafile "$cliSchema" cli.json
+                check-jsonschema --schemafile "$configSchema" config.json
+                touch "$out"
+              '';
         }
       );
     };

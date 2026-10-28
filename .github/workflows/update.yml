@@ -1,4 +1,4 @@
-name: Update OpenCode binaries
+name: Update OpenCode binaries and schemas
 on:
   schedule:
     - cron: "17 * * * *"
@@ -21,7 +21,7 @@ jobs:
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-      - name: Hash upstream release assets
+      - name: Hash upstream release binaries and schemas
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/update-version.py
@@ -45,5 +45,5 @@ jobs:
           commit-message: "chore: update OpenCode upstream binaries"
           branch: automation/opencode-release
           delete-branch: true
-          title: "chore: update OpenCode binaries"
-          body: "Automatically downloaded and SHA-256 hashed all four upstream CLI assets. CI must pass before merging."
+          title: "chore: update OpenCode binaries and schemas"
+          body: "Automatically SHA-256 hashed the four upstream CLI assets and the published CLI/config JSON schemas. CI must pass before merging."

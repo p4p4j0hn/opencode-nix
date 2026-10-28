@@ -5,5 +5,9 @@
     "aarch64-linux": "sha256-1U46ltnjK2/xJ4NpJe2aOTJU0OceDffrjMoqqWLJvfE=",
     "x86_64-darwin": "sha256-bIY22qAYZC2LK0LWktmgGubvxXNG5NqsSvfOmKbXYRo=",
     "aarch64-darwin": "sha256-iOX6jY4pNUMINQxe14QuI/Y8C05FlM2PkbDKAGt9oiQ="
+  },
+  "schemaHashes": {
+    "cli": "sha256-eNJsLl7gtqpBXqbdVjCFNk+TURkQ9u+B1H5Sm0w0ipY=",
+    "config": "sha256-AanKB+rLW+RL5PuwK0pcYZNFnjGtx/lKdUcXmiZ7YJI="
   }
 }

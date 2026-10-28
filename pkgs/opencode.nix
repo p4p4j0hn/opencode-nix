@@ -54,6 +54,18 @@ stdenvNoCC.mkDerivation {
     install -m755 "$binary" "$out/bin/opencode"
     runHook postInstall
   '';
+  # Home Manager can validate files using these pinned upstream schemas.
+  # Both schema hashes are updated with the binary release metadata.
+  passthru.jsonschema = {
+    cli = fetchurl {
+      url = "https://opencode.ai/v2/cli.json";
+      hash = release.schemaHashes.cli;
+    };
+    config = fetchurl {
+      url = "https://opencode.ai/config.json";
+      hash = release.schemaHashes.config;
+    };
+  };
   meta = {
     description = "OpenCode V2 official prebuilt npm binary";
     homepage = "https://opencode.ai";
