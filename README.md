@@ -12,6 +12,20 @@ Import `inputs.opencode-nix.homeManagerModules.default` into Home Manager and en
 
 The optional backend runs `opencode serve` as a systemd user service with restart backoff. Bind to loopback by default. Use OpenCode's server password and a secured private endpoint for remote connectivity.
 
+### Upstream Home Manager options
+
+The wrapper forwards `programs.opencode-nix.cli`, `mutableSettings`, and `validateFiles` to their `programs.opencode` equivalents, alongside the existing aliases. The regular `programs.opencode` namespace remains available. This flake follows Home Manager `master` for OpenCode 2 option support; it does not support Home Manager releases missing these options.
+
+```nix
+programs.opencode-nix = {
+  enable = true;
+  cli.tabs.mode = "auto";
+  mutableSettings = true;
+};
+```
+
+For OpenCode 2, use `cli` rather than `tui`. `validateFiles` is an attribute set with `config`, `cli`, and `tui` flags, not a boolean. Enabling a validation flag requires the configured OpenCode package to expose the corresponding `passthru.jsonschema` entry. The prebuilt package provided by this flake does not currently ship those schemas, so validation requires a schema-providing package override.
+
 ## Updating
 
 The hourly GitHub workflow checks the latest stable upstream release and makes one pull request updating all four release hashes. It will not silently accept missing assets or mismatched upstream digests. Updates require review, and upstream CLI binaries are downloaded without a source build.
