@@ -55,6 +55,11 @@ let
       takeover.enable = true;
     };
   };
+  aliasServer = makeHome {
+    cli.tabs.mode = "auto";
+    mutableSettings = true;
+    validateFiles.config = true;
+  };
   backendLinuxAssertion = builtins.any (
     item:
     item.message == "OpenCode systemd backend requires Linux." && item.assertion == pkgs.stdenv.isLinux
@@ -77,6 +82,10 @@ let
       ) != null
     && server.systemd.user.services.opencode-backend.Service.ExecStartPre == [ ];
   commandsOk = builtins.length server.home.packages >= 3;
+  upstreamAliasesOk =
+    aliasServer.programs.opencode.cli.tabs.mode == "auto"
+    && aliasServer.programs.opencode.mutableSettings
+    && aliasServer.programs.opencode.validateFiles.config;
   upstreamOk =
     server.programs.opencode.enable
     && server.programs.opencode.tui.theme == "system"
@@ -96,5 +105,6 @@ assert tunnelOk;
 assert disabledOk;
 assert takeoverOk;
 assert commandsOk;
+assert upstreamAliasesOk;
 assert upstreamOk;
 pkgs.writeText "opencode-home-manager-module-tested" "Home Manager remote client and systemd service evaluated successfully\n"
