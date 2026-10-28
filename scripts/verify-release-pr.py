@@ -102,15 +102,13 @@ def verify_release(
     if set(pins) != {"version", "hashes", "schemaHashes"}:
         raise ValueError("Unexpected version.json structure.")
     version = pins["version"]
-    if not isinstance(version, str) or not re.fullmatch(
-        r"2\.[0-9]+\.[0-9]+", version
-    ):
+    if not isinstance(version, str) or not re.fullmatch(r"2\.[0-9]+\.[0-9]+", version):
         raise ValueError("Expected stable OpenCode V2 semver.")
     if not isinstance(pins["hashes"], dict) or set(pins["hashes"]) != set(PACKAGES):
         raise ValueError("Unexpected binary hash set.")
-    if not isinstance(pins["schemaHashes"], dict) or set(
-        pins["schemaHashes"]
-    ) != set(SCHEMAS):
+    if not isinstance(pins["schemaHashes"], dict) or set(pins["schemaHashes"]) != set(
+        SCHEMAS
+    ):
         raise ValueError("Unexpected JSON schema hash set.")
     if not all(is_sha256(value) for value in pins["hashes"].values()):
         raise ValueError("Invalid SHA-256 binary hash.")
@@ -146,8 +144,7 @@ def verify_release(
         if (
             not isinstance(schema, dict)
             or schema.get("$id") != url
-            or schema.get("$schema")
-            != "https://json-schema.org/draft/2020-12/schema"
+            or schema.get("$schema") != "https://json-schema.org/draft/2020-12/schema"
             or not isinstance(schema.get("properties"), dict)
             or expected_field not in schema["properties"]
         ):
@@ -188,9 +185,7 @@ def main():
         changed,
         pins,
         repo,
-        lambda name, version: get_json(
-            f"{REGISTRY}/{quote(name, safe='')}/{version}"
-        ),
+        lambda name, version: get_json(f"{REGISTRY}/{quote(name, safe='')}/{version}"),
         download_hashes,
         get_bytes,
     )
