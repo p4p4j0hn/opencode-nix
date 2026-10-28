@@ -91,7 +91,9 @@ def main():
         print("Update available: " + old["version"] + " -> " + version)
         return
 
-    hashes = old["hashes"] if version == old["version"] else hash_native_archives(version)
+    hashes = (
+        old["hashes"] if version == old["version"] else hash_native_archives(version)
+    )
     schema_hashes = {}
     for name, url in SCHEMAS.items():
         schema_hashes[name] = get_schema_hash(name, url)
