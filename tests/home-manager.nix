@@ -57,8 +57,12 @@ let
   };
   aliasServer = makeHome {
     cli.tabs.mode = "auto";
+    settings.model = "example/model";
     mutableSettings = true;
-    validateFiles.cli = true;
+    validateFiles = {
+      config = true;
+      cli = true;
+    };
   };
   backendLinuxAssertion = builtins.any (
     item:
@@ -86,8 +90,12 @@ let
     aliasServer.programs.opencode.cli.tabs.mode == "auto"
     && aliasServer.programs.opencode.mutableSettings
     && aliasServer.programs.opencode.validateFiles.cli
+    && aliasServer.programs.opencode.validateFiles.config
     && builtins.hasAttr "opencode/home-manager-cli.json" aliasServer.xdg.configFile
-    && builtins.hasAttr "OPENCODE_CLI_CONFIG_CONTENT" aliasServer.home.sessionVariables;
+    && builtins.hasAttr "opencode/home-manager.json" aliasServer.xdg.configFile
+    && builtins.hasAttr "OPENCODE_CLI_CONFIG_CONTENT" aliasServer.home.sessionVariables
+    && aliasServer.programs.opencode.package.passthru.jsonschema ? cli
+    && aliasServer.programs.opencode.package.passthru.jsonschema ? config;
   upstreamOk =
     server.programs.opencode.enable
     && server.programs.opencode.tui.theme == "system"
