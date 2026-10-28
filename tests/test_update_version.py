@@ -41,7 +41,9 @@ class UpdateVersionTests(unittest.TestCase):
         payload = json.dumps(schema).encode()
         with patch.object(updater, "open_url", return_value=io.BytesIO(payload)):
             actual = updater.get_schema_hash("cli", url)
-        expected = "sha256-" + base64.b64encode(hashlib.sha256(payload).digest()).decode()
+        expected = (
+            "sha256-" + base64.b64encode(hashlib.sha256(payload).digest()).decode()
+        )
         self.assertEqual(actual, expected)
 
     def test_rejects_schema_from_wrong_id(self):
