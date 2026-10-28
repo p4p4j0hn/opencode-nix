@@ -24,7 +24,7 @@ programs.opencode-nix = {
 };
 ```
 
-For OpenCode 2, use `cli` rather than `tui`. `validateFiles` is an attribute set with `config`, `cli`, and `tui` flags, not a boolean. Enabling a validation flag requires the configured OpenCode package to expose the corresponding `passthru.jsonschema` entry. The prebuilt package provided by this flake does not currently ship those schemas, so validation requires a schema-providing package override.
+For OpenCode 2, use `cli` rather than `tui`. `validateFiles` is an attribute set with `config`, `cli`, and `tui` flags, not a boolean. The prebuilt OpenCode 2 package includes pinned upstream `passthru.jsonschema.config` and `passthru.jsonschema.cli` values, so `validateFiles.config = true;` and `validateFiles.cli = true;` work without a package override. OpenCode 2 does not provide a `tui` schema; leave `validateFiles.tui = false;`. Schema hashes are updated with each upstream release and checked for upstream changes by the hourly updater.
 
 ## Updating
 
