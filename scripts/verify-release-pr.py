@@ -103,7 +103,7 @@ def verify_release(
         raise ValueError("Unexpected version.json structure.")
     version = pins["version"]
     if not isinstance(version, str) or not re.fullmatch(
-        r"2\\.[0-9]+\\.[0-9]+", version
+        r"2\.[0-9]+\.[0-9]+", version
     ):
         raise ValueError("Expected stable OpenCode V2 semver.")
     if not isinstance(pins["hashes"], dict) or set(pins["hashes"]) != set(PACKAGES):
