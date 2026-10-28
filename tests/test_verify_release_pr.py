@@ -118,7 +118,9 @@ class ReleasePolicyTests(unittest.TestCase):
             self.run_verify()
 
     def test_rejects_bad_npm_integrity(self):
-        self.package_integrity = "sha512-" + "A" * 86 + "="
+        self.package_integrity = (
+            "sha512-" + base64.b64encode(bytes(64)).decode()
+        )
         with self.assertRaisesRegex(ValueError, "npm integrity mismatch"):
             self.run_verify()
 
