@@ -19,7 +19,7 @@ jobs:
   arm-auto-merge:
     name: enable-safe-auto-merge
     needs: verify
-    if: ${{ github.event.pull_request.head.ref == 'automation/opencode-release' && github.event.pull_request.head.repo.full_name == github.repository && vars.RELEASE_AUTOMERGE_ENABLED == 'true' }}
+    if: ${{ github.event.pull_request.head.ref == 'automation/opencode-release' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.changed_files == 1 && vars.RELEASE_AUTOMERGE_ENABLED == 'true' }}
     runs-on: ubuntu-24.04
     steps:
       - name: Verify main branch required checks
@@ -34,7 +34,7 @@ jobs:
           repo=os.environ["GH_REPO"]
           raw=subprocess.check_output(["gh","api",f"repos/{repo}/branches/main/protection/required_status_checks"],text=True)
           rules=json.loads(raw)
-          expected={"nix (ubuntu-latest)","nix (macos-latest)","release-policy"}
+          expected={"nix (ubuntu-26.04)","nix (macos-latest)","release-policy"}
           actual=set(rules.get("contexts",[])) | {c["context"] for c in rules.get("checks",[])}
           if not expected.issubset(actual):
               raise SystemExit(f"Refusing to auto-merge: required checks missing: {sorted(expected-actual)}")
