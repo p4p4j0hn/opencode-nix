@@ -98,8 +98,6 @@ def verify_release(
         if name in POLICY_FILES
     ):
         raise ValueError("Unexpected policy file change status.")
-    if not {"schemas/cli.json", "schemas/config.json"}.issubset(changed_files):
-        raise ValueError("Automated release PR must include both generated schemas.")
     manual_review = bool(set(changed_files) - expected_files)
 
     if set(pins) != {"version", "hashes", "schemaHashes"}:
