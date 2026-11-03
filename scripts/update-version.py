@@ -78,11 +78,16 @@ def hash_native_archives(version):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--resolve-version", action="store_true")
     args = parser.parse_args()
     latest = get_metadata("@opencode/cli", "latest")
     version = latest["version"]
     if not version.startswith("2.") or "-" in version:
         raise RuntimeError("npm latest is not stable OpenCode V2: " + version)
+
+    if args.resolve_version:
+        print(version)
+        return
 
     target = ROOT / "version.json"
     old = json.loads(target.read_text())
