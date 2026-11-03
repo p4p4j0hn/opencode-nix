@@ -25,15 +25,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="$(python3 - <<'PY'
-          import json
-          print(json.load(open("version.json"))["version"])
-          PY
-          )"
-          # The updater determines the newest release before schema generation.
+          # Resolve the release before checking out its exact matching source tag.
           python3 scripts/update-version.py --resolve-version > /tmp/opencode-version
           version="$(cat /tmp/opencode-version)"
           git clone --depth 1 --branch "v${version}" https://github.com/anomalyco/opencode.git upstream
+          test "$(node -p "require('./upstream/packages/schema/package.json').version")" = "$version"
       - uses: oven-sh/setup-bun@v2
       - name: Generate schemas from tagged upstream source
         shell: bash
