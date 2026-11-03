@@ -37,7 +37,7 @@ jobs:
           set -euo pipefail
           mkdir -p schemas
           cd upstream
-          bun install --frozen-lockfile
+          bun install --frozen-lockfile\n          bun add --no-save react
           bun packages/cli/script/schema.ts "$GITHUB_WORKSPACE/schemas/cli.json"
           bun packages/schema/script/config-schema.ts "$GITHUB_WORKSPACE/schemas/config.json"
       - name: Refresh binary and schema hashes (also when version is unchanged)
