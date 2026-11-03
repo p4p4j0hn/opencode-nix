@@ -188,7 +188,9 @@ def main():
         repo,
         lambda name, version: get_json(f"{REGISTRY}/{quote(name, safe='')}/{version}"),
         download_hashes,
-        lambda url: (Path("schemas") / ("cli.json" if url == SCHEMAS["cli"] else "config.json")).read_bytes(),
+        lambda url: (
+            Path("schemas") / ("cli.json" if url == SCHEMAS["cli"] else "config.json")
+        ).read_bytes(),
     )
     if result == "verified":
         print("Automated release metadata verified. Eligible for auto-merge.")
