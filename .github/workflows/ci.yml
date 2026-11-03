@@ -6,6 +6,47 @@ on:
 permissions:
   contents: read
 jobs:
+  bootstrap-schemas:
+    if: github.event_name == 'pull_request' && github.head_ref == 'fix/manual-schema-refresh'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: oven-sh/setup-bun@v2
+      - name: Generate matching upstream schemas
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import json; print(json.load(open("version.json"))["version"])')"
+          git clone --depth 1 --branch "v${version}" https://github.com/anomalyco/opencode.git upstream
+          test "$(node -p "require('./upstream/packages/schema/package.json').version")" = "$version"
+          mkdir -p schemas
+          (cd upstream && bun install --frozen-lockfile)
+          (cd upstream && bun packages/cli/script/schema.ts "$GITHUB_WORKSPACE/schemas/cli.json")
+          (cd upstream && bun packages/schema/script/config-schema.ts "$GITHUB_WORKSPACE/schemas/config.json")
+          python3 - <<'PY'
+          import json, hashlib, base64
+          from pathlib import Path
+          p = Path("version.json")
+          d = json.loads(p.read_text())
+          for name in ("cli", "config"):
+              payload = (Path("schemas") / f"{name}.json").read_bytes()
+              d["schemaHashes"][name] = "sha256-" + base64.b64encode(hashlib.sha256(payload).digest()).decode()
+          p.write_text(json.dumps(d, indent=2) + "\n")
+          PY
+      - name: Commit initial generated schemas
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add schemas version.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "chore: bootstrap version-matched schemas"
+          git -c http.extraheader="AUTHORIZATION: basic $(printf "x-access-token:%s" "$GH_TOKEN" | base64 -w0)" push origin HEAD:fix/manual-schema-refresh
   nix:
     strategy:
       fail-fast: false
