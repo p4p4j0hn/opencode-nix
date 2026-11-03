@@ -23,7 +23,8 @@ jobs:
           git clone --depth 1 --branch "v${version}" https://github.com/anomalyco/opencode.git upstream
           test "$(node -p "require('./upstream/packages/schema/package.json').version")" = "$version"
           mkdir -p schemas
-          (cd upstream && bun install --frozen-lockfile\n          bun add --no-save react)
+          (cd upstream && bun install --frozen-lockfile
+          bun add --no-save react)
           (cd upstream && bun packages/cli/script/schema.ts "$GITHUB_WORKSPACE/schemas/cli.json")
           (cd upstream && bun packages/schema/script/config-schema.ts "$GITHUB_WORKSPACE/schemas/config.json")
           python3 - <<'PY'
