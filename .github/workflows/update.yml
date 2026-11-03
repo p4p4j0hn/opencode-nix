@@ -3,11 +3,6 @@ on:
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
-    inputs:
-      refresh_schemas:
-        description: "Refresh pinned upstream JSON schema hashes even if the OpenCode version is unchanged"
-        type: boolean
-        default: true
 permissions:
   contents: write
   pull-requests: write
@@ -26,10 +21,12 @@ jobs:
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-      - name: Hash upstream release binaries and schemas
+      - name: Refresh binary and schema hashes (also when version is unchanged)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/update-version.py
+      - name: Show refreshed version and schema pins
+        run: git diff -- version.json
       - name: Commit V2 hashes to migration branch
         if: github.ref_name == 'feature/opencode-v2'
         env:
