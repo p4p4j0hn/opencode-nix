@@ -21,6 +21,29 @@ jobs:
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+      - name: Check out matching upstream release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 - <<'PY'
+          import json
+          print(json.load(open("version.json"))["version"])
+          PY
+          )"
+          # The updater determines the newest release before schema generation.
+          python3 scripts/update-version.py --resolve-version > /tmp/opencode-version
+          version="$(cat /tmp/opencode-version)"
+          git clone --depth 1 --branch "v${version}" https://github.com/anomalyco/opencode.git upstream
+      - uses: oven-sh/setup-bun@v2
+      - name: Generate schemas from tagged upstream source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p schemas
+          cd upstream
+          bun install --frozen-lockfile
+          bun packages/cli/script/schema.ts "$GITHUB_WORKSPACE/schemas/cli.json"
+          bun packages/schema/script/config-schema.ts "$GITHUB_WORKSPACE/schemas/config.json"
       - name: Refresh binary and schema hashes (also when version is unchanged)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -34,7 +57,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add version.json
+          git add version.json schemas/cli.json schemas/config.json
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "chore: pin verified OpenCode V2 binaries"
           git -c http.extraheader="AUTHORIZATION: basic $(printf "x-access-token:%s" "$PUSH_TOKEN" | base64 -w0)" push origin HEAD:feature/opencode-v2
@@ -43,7 +66,10 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.app.outputs.token || github.token }}
-          add-paths: version.json
+          add-paths: |
+            version.json
+            schemas/cli.json
+            schemas/config.json
           commit-message: "chore: update OpenCode upstream binaries"
           branch: automation/opencode-release
           delete-branch: true
