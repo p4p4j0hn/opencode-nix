@@ -6,6 +6,7 @@ import json
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from tempfile import TemporaryDirectory
 
 spec = importlib.util.spec_from_file_location(
     "updater", Path(__file__).resolve().parents[1] / "scripts" / "update-version.py"
@@ -39,8 +40,12 @@ class UpdateVersionTests(unittest.TestCase):
             "properties": {"tabs": {"type": "object"}},
         }
         payload = json.dumps(schema).encode()
-        with patch.object(updater, "open_url", return_value=io.BytesIO(payload)):
-            actual = updater.get_schema_hash("cli", url)
+        with TemporaryDirectory() as directory:
+            schema_dir = Path(directory) / "schemas"
+            schema_dir.mkdir()
+            (schema_dir / "cli.json").write_bytes(payload)
+            with patch.object(updater, "ROOT", Path(directory)):
+                actual = updater.get_schema_hash("cli", url)
         expected = (
             "sha256-" + base64.b64encode(hashlib.sha256(payload).digest()).decode()
         )
@@ -53,11 +58,13 @@ class UpdateVersionTests(unittest.TestCase):
             "$id": "https://unrelated.example/config.json",
             "properties": {"agents": {}},
         }
-        with patch.object(
-            updater, "open_url", return_value=io.BytesIO(json.dumps(schema).encode())
-        ):
-            with self.assertRaisesRegex(ValueError, "schema id"):
-                updater.get_schema_hash("config", url)
+        with TemporaryDirectory() as directory:
+            schema_dir = Path(directory) / "schemas"
+            schema_dir.mkdir()
+            (schema_dir / "config.json").write_text(json.dumps(schema))
+            with patch.object(updater, "ROOT", Path(directory)):
+                with self.assertRaisesRegex(ValueError, "schema id"):
+                    updater.get_schema_hash("config", url)
 
 
 if __name__ == "__main__":
