@@ -19,7 +19,7 @@ jobs:
   arm-auto-merge:
     name: enable-safe-auto-merge
     needs: verify
-    if: ${{ github.event.pull_request.head.ref == 'automation/opencode-release' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.changed_files == 1 && vars.RELEASE_AUTOMERGE_ENABLED == 'true' }}
+    if: ${{ github.event.pull_request.head.ref == 'automation/opencode-release' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.changed_files == 3 && vars.RELEASE_AUTOMERGE_ENABLED == 'true' }}
     runs-on: ubuntu-24.04
     steps:
       - name: Verify main branch required checks
