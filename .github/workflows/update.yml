@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
+    inputs:
+      refresh_schemas:
+        description: "Refresh pinned upstream JSON schema hashes even if the OpenCode version is unchanged"
+        type: boolean
+        default: true
 permissions:
   contents: write
   pull-requests: write
