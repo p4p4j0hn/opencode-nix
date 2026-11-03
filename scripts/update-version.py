@@ -36,8 +36,7 @@ def get_metadata(package, version):
 
 
 def get_schema_hash(kind, url):
-    with open_url(url) as response:
-        payload = response.read()
+    payload = (ROOT / "schemas" / f"{kind}.json").read_bytes()
     schema = json.loads(payload)
     expected_field = "tabs" if kind == "cli" else "agents"
     if (
