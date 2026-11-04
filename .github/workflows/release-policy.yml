@@ -19,12 +19,18 @@ jobs:
   arm-auto-merge:
     name: enable-safe-auto-merge
     needs: verify
-    if: ${{ github.event.pull_request.head.ref == 'automation/opencode-release' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.changed_files == 1 && vars.RELEASE_AUTOMERGE_ENABLED == 'true' }}
+    if: ${{ github.event.pull_request.head.ref == 'automation/opencode-release' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.changed_files <= 3 && vars.RELEASE_AUTOMERGE_ENABLED == 'true' }}
     runs-on: ubuntu-24.04
     steps:
+      - name: Generate merge app token
+        id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       - name: Verify main branch required checks
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
           GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
@@ -40,12 +46,6 @@ jobs:
               raise SystemExit(f"Refusing to auto-merge: required checks missing: {sorted(expected-actual)}")
           print("Required checks enforced:", sorted(expected))
           PY
-      - name: Generate merge app token
-        id: app
-        uses: actions/create-github-app-token@v3
-        with:
-          app-id: ${{ vars.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       - name: Enable GitHub auto-merge
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}

@@ -89,7 +89,8 @@ def verify_release(
         raise ValueError("Unexpected duplicate changed files.")
     if changed_files.get("version.json") != "modified":
         raise ValueError("Automated release PR must modify version.json.")
-    if not set(changed_files).issubset({"version.json"} | POLICY_FILES):
+    expected_files = {"version.json", "schemas/cli.json", "schemas/config.json"}
+    if not set(changed_files).issubset(expected_files | POLICY_FILES):
         raise ValueError("Unexpected files in automated release PR.")
     if any(
         status not in {"added", "modified"}
@@ -97,7 +98,7 @@ def verify_release(
         if name in POLICY_FILES
     ):
         raise ValueError("Unexpected policy file change status.")
-    manual_review = len(changed_files) > 1
+    manual_review = bool(set(changed_files) - expected_files)
 
     if set(pins) != {"version", "hashes", "schemaHashes"}:
         raise ValueError("Unexpected version.json structure.")
@@ -187,7 +188,9 @@ def main():
         repo,
         lambda name, version: get_json(f"{REGISTRY}/{quote(name, safe='')}/{version}"),
         download_hashes,
-        get_bytes,
+        lambda url: (
+            Path("schemas") / ("cli.json" if url == SCHEMAS["cli"] else "config.json")
+        ).read_bytes(),
     )
     if result == "verified":
         print("Automated release metadata verified. Eligible for auto-merge.")

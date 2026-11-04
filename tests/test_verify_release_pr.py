@@ -27,7 +27,11 @@ class ReleasePolicyTests(unittest.TestCase):
             },
             "user": {"login": "opencode-nix-updater[bot]"},
         }
-        self.changes = [{"filename": "version.json", "status": "modified"}]
+        self.changes = [
+            {"filename": "version.json", "status": "modified"},
+            {"filename": "schemas/cli.json", "status": "modified"},
+            {"filename": "schemas/config.json", "status": "modified"},
+        ]
         self.schemas = {
             name: json.dumps(
                 {

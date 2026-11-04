@@ -36,8 +36,7 @@ def get_metadata(package, version):
 
 
 def get_schema_hash(kind, url):
-    with open_url(url) as response:
-        payload = response.read()
+    payload = (ROOT / "schemas" / f"{kind}.json").read_bytes()
     schema = json.loads(payload)
     expected_field = "tabs" if kind == "cli" else "agents"
     if (
@@ -79,11 +78,16 @@ def hash_native_archives(version):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--resolve-version", action="store_true")
     args = parser.parse_args()
     latest = get_metadata("@opencode/cli", "latest")
     version = latest["version"]
     if not version.startswith("2.") or "-" in version:
         raise RuntimeError("npm latest is not stable OpenCode V2: " + version)
+
+    if args.resolve_version:
+        print(version)
+        return
 
     target = ROOT / "version.json"
     old = json.loads(target.read_text())
