@@ -21,9 +21,16 @@ behavior to Home Manager **release-26.05**:
 | `themes` | Custom themes |
 | `tools` | Custom tools |
 
-The project-specific extensions are `backend.*` (the existing
-persistent systemd user service), `client.connections.*` (named remote
-clients), and `recoverySkill.enable`.
+The project-specific extensions are `backend.*` (the persistent systemd user
+service and its local client), `client.connections.*` (named remote clients),
+and `recoverySkill.enable`.
+
+When `backend.enable` is true, the generated `opencode` command connects to
+the active `opencode-backend.service` with `--server`; otherwise it preserves
+OpenCode's normal shared-service behavior. Set `backend.passwordFile` to a
+runtime mode-600 file when the backend is password-protected. Named client
+connections use their own `passwordFile` option for the same purpose. The
+module does not manage how those runtime files are created.
 
 The built-in compaction recovery skill is added via `skills` and can
 be overridden or disabled. Do not enable both `web.enable` and

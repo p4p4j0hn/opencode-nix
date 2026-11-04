@@ -35,6 +35,8 @@ owns the working trees, development tools and session database.
       sshTarget = "opencode-host";
       localPort = 14096;
       remotePort = 4096;
+      # Optional: runtime mode-600 file containing OPENCODE_PASSWORD.
+      # passwordFile = "/home/me/.config/opencode/server-password";
     };
   };
 }
@@ -42,7 +44,7 @@ owns the working trees, development tools and session database.
 
 Invoke `opencode-lab` on the laptop. That command starts the
 `opencode-tunnel-lab.service` user unit, waits for its local TCP
-listener, then runs `opencode attach http://127.0.0.1:14096`.
+listener, then runs `opencode --server http://127.0.0.1:14096`.
 
 Configure `Host opencode-host` and authentication in your OpenSSH
 client configuration. SSH must be able to connect noninteractively
@@ -53,7 +55,8 @@ The tunnel remains available after the TUI exits; stop it with
 
 For multiple SSH targets choose a unique `localPort` for each one.
 For a direct connection set `transport = "direct"; url = "https://...";`
-and use its generated `opencode-<name>` command.
+and use its generated `opencode-<name>` command. Set `passwordFile` when the
+server requires a password.
 
 SSH tunnelling keeps the OpenCode service bound to loopback on the host.
 Never expose an unauthenticated OpenCode backend directly to the internet.
