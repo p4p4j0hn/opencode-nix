@@ -53,8 +53,8 @@ class Backend:
             p.mkdir(exist_ok=True)
             self.env[key] = str(p)
         self.env["HOME"] = str(self.root)
-        self.env.pop("OPENCODE_PASSWORD", None)
-        self.env["OPENCODE_SERVER_PASSWORD"] = password
+        self.env.pop("OPENCODE_SERVER_PASSWORD", None)
+        self.env["OPENCODE_PASSWORD"] = password
 
     def start(self):
         with socket.socket() as sock:

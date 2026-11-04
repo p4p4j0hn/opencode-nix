@@ -18,8 +18,11 @@ let
           };
           programs.opencode-nix = {
             enable = true;
-            backend.enable = true;
-            backend.port = 4096;
+            backend = {
+              enable = true;
+              port = 4096;
+              passwordFile = "/run/user/1000/opencode-password";
+            };
             tui.theme = "system";
             context = "Test global context";
             commands.audit = "Audit the changes";
@@ -36,6 +39,7 @@ let
                 transport = "ssh";
                 sshTarget = "builder.internal";
                 localPort = 14096;
+                passwordFile = "/run/user/1000/opencode-password";
               };
               direct = {
                 transport = "direct";
@@ -70,6 +74,7 @@ let
   ) server.assertions;
   service = server.systemd.user.services.opencode-backend.Service;
   tunnel = server.systemd.user.services.opencode-tunnel-lab.Service;
+  localClient = server.programs.opencode.package.passthru.opencodeClientScript;
   serviceOk =
     service.Restart == "always"
     && service.RestartSteps == 8
@@ -77,6 +82,11 @@ let
     && builtins.match ".*serve.*" (builtins.head service.ExecStart) != null;
   tunnelOk =
     builtins.match ".*-L 127.0.0.1:14096:127.0.0.1:4096.*" (builtins.head tunnel.ExecStart) != null;
+  clientOk =
+    pkgs.lib.hasInfix "--server" localClient
+    && pkgs.lib.hasInfix "127.0.0.1:4096" localClient
+    && pkgs.lib.hasInfix "OPENCODE_PASSWORD" localClient
+    && pkgs.lib.hasInfix "opencode-password" localClient;
   disabledOk = !(client.systemd.user.services ? opencode-backend);
   takeoverOk =
     builtins.length takeoverServer.systemd.user.services.opencode-backend.Service.ExecStartPre == 1
@@ -112,6 +122,7 @@ in
 assert backendLinuxAssertion;
 assert serviceOk;
 assert tunnelOk;
+assert clientOk;
 assert disabledOk;
 assert takeoverOk;
 assert commandsOk;

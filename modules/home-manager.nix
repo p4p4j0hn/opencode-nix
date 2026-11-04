@@ -16,6 +16,21 @@ let
   opencodePkg = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
   connections = cfg.client.connections;
   tunnelServiceName = name: "opencode-tunnel-${name}";
+  backendServiceName = "opencode-backend.service";
+  passwordSetup =
+    passwordFile:
+    lib.optionalString (passwordFile != null) ''
+      password_file=${lib.escapeShellArg passwordFile}
+      if [[ ! -r "$password_file" ]]; then
+        echo "OpenCode password file is not readable: $password_file" >&2
+        exit 1
+      fi
+      export OPENCODE_PASSWORD="$(${pkgs.coreutils}/bin/cat -- "$password_file")"
+      if [[ -z "$OPENCODE_PASSWORD" ]]; then
+        echo "OpenCode password file is empty: $password_file" >&2
+        exit 1
+      fi
+    '';
   attachUrl =
     connection:
     if connection.transport == "ssh" then
@@ -26,6 +41,7 @@ let
     name: connection:
     pkgs.writeShellScriptBin "opencode-${name}" ''
       set -euo pipefail
+      ${passwordSetup connection.passwordFile}
       ${lib.optionalString (connection.transport == "ssh") ''
         ${pkgs.systemd}/bin/systemctl --user start ${lib.escapeShellArg (tunnelServiceName name)}.service
         ready=0
@@ -41,8 +57,30 @@ let
           exit 1
         fi
       ''}
-      exec ${lib.getExe cfg.package} attach ${lib.escapeShellArg (attachUrl connection)} "$@"
+      exec ${lib.getExe cfg.package} --server ${lib.escapeShellArg (attachUrl connection)} "$@"
     '';
+  localClientScript = ''
+    set -euo pipefail
+    if ${pkgs.systemd}/bin/systemctl --user is-active --quiet ${lib.escapeShellArg backendServiceName} 2>/dev/null; then
+      ${passwordSetup cfg.backend.passwordFile}
+      exec ${lib.getExe cfg.package} --server ${lib.escapeShellArg "http://${cfg.backend.host}:${toString cfg.backend.port}"} "$@"
+    fi
+    exec ${lib.getExe cfg.package} "$@"
+  '';
+  localClientPackage =
+    if !cfg.backend.enable then
+      cfg.package
+    else
+      (pkgs.writeShellScriptBin "opencode" localClientScript).overrideAttrs (_: {
+        pname = cfg.package.pname or "opencode";
+        version = cfg.package.version or "0";
+        meta = (cfg.package.meta or { }) // {
+          mainProgram = "opencode";
+        };
+        passthru = (cfg.package.passthru or { }) // {
+          opencodeClientScript = localClientScript;
+        };
+      });
 in
 {
   imports =
@@ -95,7 +133,12 @@ in
       environmentFile = mkOption {
         type = types.nullOr types.str;
         default = null;
-        description = "Runtime path containing OPENCODE_SERVER_PASSWORD and other secrets; never use a Nix store path.";
+        description = "Runtime path containing OPENCODE_PASSWORD and other secrets; never use a Nix store path.";
+      };
+      passwordFile = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Runtime path containing the OpenCode server password for local and named clients; never use a Nix store path.";
       };
     };
     client.connections = mkOption {
@@ -116,6 +159,11 @@ in
               type = types.nullOr types.str;
               default = null;
               description = "Complete HTTP(S) URL for direct transport.";
+            };
+            passwordFile = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Runtime path containing the server password; never use a Nix store path.";
             };
             sshTarget = mkOption {
               type = types.nullOr types.str;
@@ -176,7 +224,8 @@ in
     ];
     programs.opencode = {
       enable = true;
-      inherit (cfg) package settings;
+      package = localClientPackage;
+      inherit (cfg) settings;
       skills.compaction-recovery = mkIf cfg.recoverySkill.enable ../skills/compaction-recovery/SKILL.md;
     };
     home.packages = lib.mapAttrsToList attachCommand connections;
