@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
       - name: Generate release automation app token
         id: app
         if: ${{ vars.RELEASE_APP_ID != '' }}
@@ -47,14 +49,16 @@ jobs:
         run: python3 scripts/update-version.py
       - name: Show refreshed version and schema pins
         run: git diff -- version.json
-      - name: Commit V2 hashes to migration branch
+      - name: Update flake inputs
+        run: nix flake update
+      - name: Commit V2 pins to migration branch
         if: github.ref_name == 'feature/opencode-v2'
         env:
           PUSH_TOKEN: ${{ steps.app.outputs.token || github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add version.json schemas/cli.json schemas/config.json
+          git add version.json schemas/cli.json schemas/config.json flake.lock
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "chore: pin verified OpenCode V2 binaries"
           git -c http.extraheader="AUTHORIZATION: basic $(printf "x-access-token:%s" "$PUSH_TOKEN" | base64 -w0)" push origin HEAD:feature/opencode-v2
@@ -67,8 +71,9 @@ jobs:
             version.json
             schemas/cli.json
             schemas/config.json
-          commit-message: "chore: update OpenCode upstream binaries"
+            flake.lock
+          commit-message: "chore: update OpenCode pins"
           branch: automation/opencode-release
           delete-branch: true
-          title: "chore: update OpenCode binaries and schemas"
-          body: "Automatically SHA-256 hashed the four upstream CLI assets and the published CLI/config JSON schemas. CI must pass before merging."
+          title: "chore: update OpenCode pins"
+          body: "Automatically updated the verified OpenCode binary/schema pins and Nix flake inputs. CI must pass before merging."

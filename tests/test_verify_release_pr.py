@@ -31,6 +31,7 @@ class ReleasePolicyTests(unittest.TestCase):
             {"filename": "version.json", "status": "modified"},
             {"filename": "schemas/cli.json", "status": "modified"},
             {"filename": "schemas/config.json", "status": "modified"},
+            {"filename": "flake.lock", "status": "modified"},
         ]
         self.schemas = {
             name: json.dumps(
@@ -100,6 +101,11 @@ class ReleasePolicyTests(unittest.TestCase):
     def test_rejects_unexpected_files(self):
         self.changes.append({"filename": "arbitrary.nix", "status": "added"})
         with self.assertRaisesRegex(ValueError, "Unexpected"):
+            self.run_verify()
+
+    def test_requires_flake_lock(self):
+        self.changes = [{"filename": "version.json", "status": "modified"}]
+        with self.assertRaisesRegex(ValueError, "flake.lock"):
             self.run_verify()
 
     def test_policy_change_requires_manual_review(self):
