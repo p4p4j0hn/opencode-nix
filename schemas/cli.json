@@ -885,6 +885,10 @@
               "anyOf": [{ "$ref": "#/$defs/TuiKeybind.BindingValue" }, { "type": "null" }],
               "description": "Delete integration account"
             },
+            "dialog.integration.copy": {
+              "anyOf": [{ "$ref": "#/$defs/TuiKeybind.BindingValue" }, { "type": "null" }],
+              "description": "Copy authorization link"
+            },
             "dialog.worktree.generate": {
               "anyOf": [{ "$ref": "#/$defs/TuiKeybind.BindingValue" }, { "type": "null" }],
               "description": "Generate worktree name"
@@ -1045,7 +1049,7 @@
           "type": "object",
           "properties": {
             "timeout": {
-              "anyOf": [{ "type": "integer", "exclusiveMinimum": 0 }, { "type": "null" }],
+              "anyOf": [{ "type": "integer", "maximum": 9007199254740991, "exclusiveMinimum": 0 }, { "type": "null" }],
               "description": "Time in milliseconds to wait for a key after the leader key"
             }
           },
@@ -1124,10 +1128,7 @@
           "type": "object",
           "properties": {
             "source": {
-              "anyOf": [
-                { "anyOf": [{ "$ref": "#/$defs/Vcs.Mode" }, { "type": "string", "enum": ["turn"] }] },
-                { "type": "null" }
-              ],
+              "anyOf": [{ "$ref": "#/$defs/Vcs.Mode" }, { "type": "string", "enum": ["turn"] }, { "type": "null" }],
               "description": "Initial diff source; defaults to 'branch' (branch and uncommitted changes). 'turn' shows the session's last turn and falls back to 'branch' outside a session"
             },
             "wrap": {
@@ -1210,6 +1211,10 @@
             "scrollbar": {
               "anyOf": [{ "type": "boolean" }, { "type": "null" }],
               "description": "Show the session transcript scrollbar"
+            },
+            "submit_scroll": {
+              "anyOf": [{ "type": "string", "enum": ["bottom", "keep"] }, { "type": "null" }],
+              "description": "Jump to the latest message when sending a prompt, or keep the current transcript position"
             },
             "thinking": {
               "anyOf": [{ "type": "string", "enum": ["show", "hide"] }, { "type": "null" }],
@@ -1345,7 +1350,7 @@
               "description": "Restore session history on resume and terminal resize"
             },
             "replay_limit": {
-              "anyOf": [{ "type": "integer", "exclusiveMinimum": 0 }, { "type": "null" }],
+              "anyOf": [{ "type": "integer", "maximum": 9007199254740991, "exclusiveMinimum": 0 }, { "type": "null" }],
               "description": "Maximum number of newest messages restored during replay"
             }
           },
@@ -1369,10 +1374,7 @@
               "description": "Show time-to-first-draw diagnostics"
             },
             "turn_tokens": {
-              "anyOf": [
-                { "anyOf": [{ "type": "boolean" }, { "type": "string", "enum": ["verbose"] }] },
-                { "type": "null" }
-              ],
+              "anyOf": [{ "type": "boolean" }, { "type": "string", "enum": ["verbose"] }, { "type": "null" }],
               "description": "Show per-turn token usage diagnostics, optionally with tool call inputs"
             }
           },
@@ -1422,51 +1424,47 @@
       "anyOf": [
         { "type": "boolean", "enum": [false] },
         { "type": "string", "enum": ["none"] },
+        { "type": "string" },
         {
-          "anyOf": [
-            { "type": "string" },
-            {
-              "type": "object",
-              "properties": {
-                "name": { "type": "string" },
-                "ctrl": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
-                "shift": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
-                "meta": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
-                "super": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
-                "hyper": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] }
-              },
-              "required": ["name"],
-              "additionalProperties": false
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "ctrl": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+            "shift": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+            "meta": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+            "super": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+            "hyper": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] }
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "key": {
+              "anyOf": [
+                { "type": "string" },
+                {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "ctrl": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+                    "shift": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+                    "meta": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+                    "super": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+                    "hyper": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              ]
             },
-            {
-              "type": "object",
-              "properties": {
-                "key": {
-                  "anyOf": [
-                    { "type": "string" },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "name": { "type": "string" },
-                        "ctrl": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
-                        "shift": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
-                        "meta": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
-                        "super": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
-                        "hyper": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] }
-                      },
-                      "required": ["name"],
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "event": { "anyOf": [{ "type": "string", "enum": ["press", "release"] }, { "type": "null" }] },
-                "preventDefault": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
-                "fallthrough": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] }
-              },
-              "required": ["key"],
-              "allOf": [{ "type": "object", "additionalProperties": {} }]
-            }
-          ]
+            "event": { "anyOf": [{ "type": "string", "enum": ["press", "release"] }, { "type": "null" }] },
+            "preventDefault": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] },
+            "fallthrough": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] }
+          },
+          "required": ["key"],
+          "allOf": [{ "type": "object", "additionalProperties": {} }]
         },
         {
           "type": "array",
