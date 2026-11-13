@@ -86,6 +86,12 @@
                 touch "$out"
               '';
         }
+        // nixpkgs.lib.optionalAttrs (builtins.getEnv "OPENCODE_NIX_RUN_VM_TESTS" == "1") {
+          nixos-smoke = import ./tests/nixos-smoke.nix { inherit pkgs; };
+          nixos-private-socket = import ./tests/nixos-private-socket.nix {
+            inherit pkgs self home-manager;
+          };
+        }
       );
     };
 }

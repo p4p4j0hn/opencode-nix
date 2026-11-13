@@ -23,6 +23,7 @@ let
               enable = true;
               port = 4096;
               passwordCredential = "/run/user/1000/opencode-password";
+              privateSocket.enable = true;
             };
             tui.theme = "system";
             context = "Test global context";
@@ -41,6 +42,12 @@ let
                 sshTarget = "builder.internal";
                 localPort = 14096;
                 passwordFile = "/run/user/1000/opencode-password";
+              };
+              unix = {
+                transport = "ssh-unix";
+                sshTarget = "builder.internal";
+                remoteSocket = "/run/user/1000/opencode/opencode.sock";
+                localPort = 15096;
               };
               direct = {
                 transport = "direct";
@@ -75,6 +82,11 @@ let
   ) server.assertions;
   service = server.systemd.user.services.opencode-backend.Service;
   tunnel = server.systemd.user.services.opencode-tunnel-lab.Service;
+  unixTunnel = server.systemd.user.services.opencode-tunnel-unix.Service;
+  unixProxy = server.systemd.user.services.opencode-client-proxy-unix.Service;
+  privateBackend = server.systemd.user.services.opencode-backend.Service;
+  privateServerSocket = server.systemd.user.sockets.opencode-proxy.Socket;
+  tmpfilesOk = server.systemd.user.tmpfiles.rules == [ "d %t/opencode 0700 - - -" ];
   localClient = server.programs.opencode.package.passthru.opencodeClientScript;
   serviceOk =
     service.Restart == "always"
@@ -84,9 +96,19 @@ let
     && service.LoadCredential == [ "opencode-password:/run/user/1000/opencode-password" ];
   tunnelOk =
     builtins.match ".*-L 127.0.0.1:14096:127.0.0.1:4096.*" (builtins.head tunnel.ExecStart) != null;
+  unixTransportOk =
+    builtins.match ".*-L %t/opencode/unix.sock:/run/user/1000/opencode/opencode.sock.*" (
+      builtins.head unixTunnel.ExecStart
+    ) != null;
+  privateBackendOk =
+    privateBackend.PrivateNetwork
+    && privateServerSocket.ListenStream == "%t/opencode/opencode.sock"
+    && privateServerSocket.SocketMode == "0600"
+    && privateServerSocket.DirectoryMode == "0700";
   clientOk =
     pkgs.lib.hasInfix "--server" localClient
     && pkgs.lib.hasInfix "127.0.0.1:4096" localClient
+    && pkgs.lib.hasInfix "PrivateNetwork=true -p JoinsNamespaceOf=opencode-proxy.service" localClient
     && pkgs.lib.hasInfix "OPENCODE_PASSWORD" localClient
     && pkgs.lib.hasInfix "opencode-password" localClient;
   disabledOk = !(client.systemd.user.services ? opencode-backend);
@@ -124,6 +146,9 @@ in
 assert backendLinuxAssertion;
 assert serviceOk;
 assert tunnelOk;
+assert unixTransportOk;
+assert privateBackendOk;
+assert tmpfilesOk;
 assert clientOk;
 assert disabledOk;
 assert takeoverOk;

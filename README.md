@@ -30,6 +30,13 @@ For OpenCode 2, use `cli` rather than `tui`. `validateFiles` is an attribute set
 
 The hourly GitHub workflow checks the latest stable upstream release and makes one pull request updating all four release hashes. It will not silently accept missing assets or mismatched upstream digests. Updates require review, and upstream CLI binaries are downloaded without a source build.
 
+The namespace/socket integration test is an opt-in NixOS VM test because it
+requires QEMU. Run it explicitly with:
+
+```bash
+OPENCODE_NIX_RUN_VM_TESTS=1 nix build --impure .#checks.x86_64-linux.nixos-private-socket
+```
+
 ## Security and limitations
 
 Do not give the backend unrestricted public access or put credentials in Nix store paths. The recovery skill instructs read-only access to OpenCode history and does not modify session databases. This initial revision supports one backend per user; richer multi-instance support, release signing verification and desktop builds can be added later.
