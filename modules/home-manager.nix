@@ -62,7 +62,7 @@ let
   localClientScript = ''
     set -euo pipefail
     if ${pkgs.systemd}/bin/systemctl --user is-active --quiet ${lib.escapeShellArg backendServiceName} 2>/dev/null; then
-      ${passwordSetup cfg.backend.passwordFile}
+      ${passwordSetup cfg.client.passwordFile}
       exec ${lib.getExe cfg.package} --server ${lib.escapeShellArg "http://${cfg.backend.host}:${toString cfg.backend.port}"} "$@"
     fi
     exec ${lib.getExe cfg.package} "$@"
@@ -145,11 +145,16 @@ in
         default = null;
         description = "Runtime path containing OPENCODE_PASSWORD and other secrets; never use a Nix store path.";
       };
-      passwordFile = mkOption {
-        type = types.nullOr types.str;
+      passwordCredential = mkOption {
+        type = types.nullOr types.path;
         default = null;
-        description = "Runtime path containing the OpenCode server password for local and named clients; never use a Nix store path.";
+        description = "Path loaded as the backend's systemd password credential; use passwordFile separately for local clients.";
       };
+    };
+    client.passwordFile = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      description = "Runtime path containing the OpenCode server password for the local client; never use a Nix store path.";
     };
     client.connections = mkOption {
       default = { };
@@ -251,7 +256,15 @@ in
             Wants = [ "network-online.target" ];
           };
           Service = {
-            ExecStart = "${lib.getExe cfg.package} serve --hostname ${lib.escapeShellArg cfg.backend.host} --port ${toString cfg.backend.port}";
+            ExecStart =
+              if cfg.backend.passwordCredential == null then
+                "${lib.getExe cfg.package} serve --hostname ${lib.escapeShellArg cfg.backend.host} --port ${toString cfg.backend.port}"
+              else
+                pkgs.writeShellScript "opencode-backend" ''
+                  set -euo pipefail
+                  export OPENCODE_PASSWORD="$(cat "$CREDENTIALS_DIRECTORY/opencode-password")"
+                  exec ${lib.getExe cfg.package} serve --hostname ${lib.escapeShellArg cfg.backend.host} --port ${toString cfg.backend.port}
+                '';
             ExecStartPre = lib.optional cfg.backend.takeover.enable "${pkgs.python3}/bin/python3 ${pkgs.writeText "opencode-takeover.py" (builtins.readFile ../scripts/takeover-port.py)} --port ${toString cfg.backend.port} --grace-seconds ${toString cfg.backend.takeover.graceSeconds}";
             Environment = lib.optional cfg.backend.takeover.enable "OPENCODE_LSOF=${pkgs.lsof}/bin/lsof";
             Restart = "always";
@@ -259,6 +272,9 @@ in
             RestartSteps = 8;
             RestartMaxDelaySec = "5min";
             EnvironmentFile = lib.optional (cfg.backend.environmentFile != null) cfg.backend.environmentFile;
+            LoadCredential = lib.optional (
+              cfg.backend.passwordCredential != null
+            ) "opencode-password:${cfg.backend.passwordCredential}";
           };
           Install.WantedBy = [ "default.target" ];
         };
