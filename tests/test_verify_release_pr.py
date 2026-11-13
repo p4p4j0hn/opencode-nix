@@ -103,9 +103,15 @@ class ReleasePolicyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unexpected"):
             self.run_verify()
 
-    def test_requires_flake_lock(self):
-        self.changes = [{"filename": "version.json", "status": "modified"}]
-        with self.assertRaisesRegex(ValueError, "flake.lock"):
+    def test_schema_only_update_without_flake_lock_passes(self):
+        self.changes = [
+            item for item in self.changes if item["filename"] != "flake.lock"
+        ]
+        self.assertEqual(self.run_verify(), "verified")
+
+    def test_rejects_deleted_flake_lock(self):
+        self.changes[-1]["status"] = "removed"
+        with self.assertRaisesRegex(ValueError, "only modify flake.lock"):
             self.run_verify()
 
     def test_policy_change_requires_manual_review(self):
@@ -119,7 +125,23 @@ class ReleasePolicyTests(unittest.TestCase):
                 {"filename": "tests/test_verify_release_pr.py", "status": "added"},
             ]
         )
-        self.assertEqual(self.run_verify(), "manual-review-required")
+        with self.assertRaisesRegex(ValueError, "separately reviewed"):
+            self.run_verify()
+
+    def test_schema_files_are_eligible_for_automatic_merge(self):
+        self.assertEqual(self.run_verify(), "verified")
+
+    def test_deleted_schema_fails_closed(self):
+        self.changes[1]["status"] = "removed"
+        with self.assertRaisesRegex(ValueError, "only add or modify schema"):
+            self.run_verify()
+
+    def test_unregistered_schema_fails_closed(self):
+        self.changes.append(
+            {"filename": "schemas/unregistered.json", "status": "added"}
+        )
+        with self.assertRaisesRegex(ValueError, "Unexpected files"):
+            self.run_verify()
 
     def test_rejects_bad_package_hash(self):
         self.pins["hashes"]["x86_64-linux"] = hash_data(b"tampered")

@@ -89,13 +89,10 @@ def verify_release(
         raise ValueError("Unexpected duplicate changed files.")
     if changed_files.get("version.json") != "modified":
         raise ValueError("Automated release PR must modify version.json.")
-    if changed_files.get("flake.lock") != "modified":
-        raise ValueError("Automated release PR must modify flake.lock.")
-    expected_files = {
-        "version.json",
-        "schemas/cli.json",
-        "schemas/config.json",
-        "flake.lock",
+    if "flake.lock" in changed_files and changed_files["flake.lock"] != "modified":
+        raise ValueError("Automated release PR may only modify flake.lock.")
+    expected_files = {"version.json", "flake.lock"} | {
+        f"schemas/{name}.json" for name in SCHEMAS
     }
     if not set(changed_files).issubset(expected_files | POLICY_FILES):
         raise ValueError("Unexpected files in automated release PR.")
@@ -106,6 +103,17 @@ def verify_release(
     ):
         raise ValueError("Unexpected policy file change status.")
     manual_review = bool(set(changed_files) - expected_files)
+    if manual_review:
+        raise ValueError(
+            "Automated release PR cannot modify release policy files; "
+            "use a separately reviewed maintenance PR."
+        )
+    if any(
+        status not in ("added", "modified")
+        for name, status in changed_files.items()
+        if name.startswith("schemas/")
+    ):
+        raise ValueError("Automated release PR may only add or modify schema files.")
 
     if set(pins) != {"version", "hashes", "schemaHashes"}:
         raise ValueError("Unexpected version.json structure.")
@@ -162,9 +170,6 @@ def verify_release(
             raise ValueError(f"{name} schema hash mismatch.")
         print(f"{name}: upstream schema SHA-256 verified.")
 
-    if manual_review:
-        print("Release-policy maintenance files changed: manual review required.")
-        return "manual-review-required"
     return "verified"
 
 
