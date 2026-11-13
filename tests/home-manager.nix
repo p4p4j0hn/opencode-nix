@@ -18,10 +18,11 @@ let
           };
           programs.opencode-nix = {
             enable = true;
+            client.passwordFile = "/run/user/1000/opencode-password";
             backend = {
               enable = true;
               port = 4096;
-              passwordFile = "/run/user/1000/opencode-password";
+              passwordCredential = "/run/user/1000/opencode-password";
             };
             tui.theme = "system";
             context = "Test global context";
