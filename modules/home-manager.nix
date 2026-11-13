@@ -89,10 +89,7 @@ in
       [
         "extraPackages"
         "enableMcpIntegration"
-        "cli"
         "tui"
-        "mutableSettings"
-        "validateFiles"
         "web"
         "context"
         "commands"
