@@ -19,10 +19,7 @@ def gh_api(path):
 def check_rulesets(summaries, detail):
     """Fail closed unless a single active main ruleset enforces all safeguards."""
     for summary in summaries:
-        if (
-            summary.get("target") != "branch"
-            or summary.get("enforcement") != "active"
-        ):
+        if summary.get("target") != "branch" or summary.get("enforcement") != "active":
             continue
         ruleset = detail(summary["id"])
         conditions = ruleset.get("conditions", {}).get("ref_name", {})
@@ -35,7 +32,10 @@ def check_rulesets(summaries, detail):
                 name in includes
                 for name in ("refs/heads/main", "~DEFAULT_BRANCH", "~ALL")
             )
-            or any(name in excludes for name in ("refs/heads/main", "~DEFAULT_BRANCH", "~ALL"))
+            or any(
+                name in excludes
+                for name in ("refs/heads/main", "~DEFAULT_BRANCH", "~ALL")
+            )
             or ruleset.get("bypass_actors")
         ):
             continue
@@ -49,13 +49,11 @@ def check_rulesets(summaries, detail):
                 continue
             params = rule.get("parameters", {})
             required = {
-                item.get("context")
-                for item in params.get("required_status_checks", [])
+                item.get("context") for item in params.get("required_status_checks", [])
             }
-            if (
-                params.get("strict_required_status_checks_policy") is True
-                and REQUIRED_CHECKS.issubset(required)
-            ):
+            if params.get(
+                "strict_required_status_checks_policy"
+            ) is True and REQUIRED_CHECKS.issubset(required):
                 print(
                     "Active main ruleset",
                     summary["id"],
