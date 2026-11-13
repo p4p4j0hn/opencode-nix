@@ -103,9 +103,15 @@ class ReleasePolicyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unexpected"):
             self.run_verify()
 
-    def test_requires_flake_lock(self):
-        self.changes = [{"filename": "version.json", "status": "modified"}]
-        with self.assertRaisesRegex(ValueError, "flake.lock"):
+    def test_schema_only_update_without_flake_lock_passes(self):
+        self.changes = [
+            item for item in self.changes if item["filename"] != "flake.lock"
+        ]
+        self.assertEqual(self.run_verify(), "verified")
+
+    def test_rejects_deleted_flake_lock(self):
+        self.changes[-1]["status"] = "removed"
+        with self.assertRaisesRegex(ValueError, "only modify flake.lock"):
             self.run_verify()
 
     def test_policy_change_requires_manual_review(self):
