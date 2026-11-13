@@ -18,10 +18,11 @@ let
           };
           programs.opencode-nix = {
             enable = true;
+            client.passwordFile = "/run/user/1000/opencode-password";
             backend = {
               enable = true;
               port = 4096;
-              passwordFile = "/run/user/1000/opencode-password";
+              passwordCredential = "/run/user/1000/opencode-password";
             };
             tui.theme = "system";
             context = "Test global context";
@@ -79,7 +80,8 @@ let
     service.Restart == "always"
     && service.RestartSteps == 8
     && service.RestartMaxDelaySec == "5min"
-    && builtins.match ".*serve.*" (builtins.head service.ExecStart) != null;
+    && builtins.match ".*serve.*" (builtins.readFile (builtins.head service.ExecStart)) != null
+    && service.LoadCredential == [ "opencode-password:/run/user/1000/opencode-password" ];
   tunnelOk =
     builtins.match ".*-L 127.0.0.1:14096:127.0.0.1:4096.*" (builtins.head tunnel.ExecStart) != null;
   clientOk =
