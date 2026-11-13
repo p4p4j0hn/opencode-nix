@@ -11,6 +11,10 @@ pkgs.testers.nixosTest {
       { config, ... }:
       {
         imports = [ home-manager.nixosModules.home-manager ];
+        boot.kernel.sysctl = {
+          "kernel.unprivileged_userns_clone" = 1;
+          "user.max_user_namespaces" = 1024;
+        };
         networking.firewall.enable = false;
         environment.systemPackages = [
           pkgs.curl
@@ -18,10 +22,14 @@ pkgs.testers.nixosTest {
           pkgs.sshpass
           pkgs.socat
         ];
-        systemd.tmpfiles.rules = [ "d /run/opencode 0700 ci users -" ];
+        systemd.tmpfiles.rules = [
+          "d /run/opencode 0700 ci users -"
+          "d /run/user/1000/opencode 0700 ci users -"
+        ];
         users.users.ci = {
           isNormalUser = true;
           password = "ci";
+          linger = true;
           openssh.authorizedKeys.keys = [
             "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPDF/GeX8zCFYeTC6/CGYcRRyv/KmuqSngfoNB3F0wnW john@defiant"
           ];
@@ -158,9 +166,12 @@ pkgs.testers.nixosTest {
     server.wait_for_unit("multi-user.target")
     server.succeed("systemctl start sshd.service")
     server.succeed("install -d -m 700 -o ci -g users /home/ci/.ssh; install -m 600 -o ci -g users /etc/ci-key /home/ci/.ssh/id_ed25519; ssh-keyscan -H localhost > /home/ci/.ssh/known_hosts; chown ci:users /home/ci/.ssh/known_hosts")
+    server.succeed("install -d -m 700 -o ci -g users /run/user/1000/opencode")
     server.succeed("test -x /home/ci/.nix-profile/bin/opencode-fixture")
     server.succeed("grep -q 'opencode-client-proxy-fixture.service' /home/ci/.nix-profile/bin/opencode-fixture")
     server.succeed("test -x /home/ci/.nix-profile/bin/opencode-fixture && echo GENERATED_WRAPPER_INSTALLED")
+    server.succeed("systemd-run --machine=ci@.host --user --wait /home/ci/.nix-profile/bin/opencode-fixture --help >/tmp/opencode-help 2>&1 || (cat /tmp/opencode-help; su - ci -c 'journalctl --user -u opencode-tunnel-fixture.service --no-pager'; false)")
+    server.succeed("test -s /tmp/opencode-help && echo GENERATED_WRAPPER_OK")
     server.succeed("systemctl start fake-opencode.service")
     server.wait_for_unit("fake-opencode.service")
     server.succeed("systemctl start opencode-proxy.socket")

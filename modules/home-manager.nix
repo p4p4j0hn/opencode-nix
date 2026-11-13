@@ -74,7 +74,7 @@ let
       ''}
       ${
         if connection.transport == "ssh-unix" then
-          "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet -p PrivateNetwork=true -p JoinsNamespaceOf=${lib.escapeShellArg (clientProxyServiceName name)}.service -- ${lib.getExe cfg.package} --server ${lib.escapeShellArg (attachUrl connection)} \"$@\""
+          "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet -p PrivateNetwork=true -p PrivateUsers=true -p JoinsNamespaceOf=${lib.escapeShellArg (clientProxyServiceName name)}.service -- ${lib.getExe cfg.package} --server ${lib.escapeShellArg (attachUrl connection)} \"$@\""
         else
           "exec ${lib.getExe cfg.package} --server ${lib.escapeShellArg (attachUrl connection)} \"$@\""
       }
@@ -86,7 +86,7 @@ let
        ${lib.optionalString cfg.backend.privateSocket.enable "${pkgs.systemd}/bin/systemctl --user start opencode-proxy.service"}
        ${
          if cfg.backend.privateSocket.enable then
-           "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet -p PrivateNetwork=true -p JoinsNamespaceOf=opencode-proxy.service -- ${lib.getExe cfg.package} --server ${lib.escapeShellArg "http://127.0.0.1:${toString cfg.backend.port}"} \"$@\""
+           "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet -p PrivateNetwork=true -p PrivateUsers=true -p JoinsNamespaceOf=opencode-proxy.service -- ${lib.getExe cfg.package} --server ${lib.escapeShellArg "http://127.0.0.1:${toString cfg.backend.port}"} \"$@\""
          else
            "exec ${lib.getExe cfg.package} --server ${lib.escapeShellArg "http://${cfg.backend.host}:${toString cfg.backend.port}"} \"$@\""
        }
@@ -344,6 +344,7 @@ in
           };
           Service = {
             PrivateNetwork = true;
+            PrivateUsers = true;
             ExecStart = "${pkgs.socat}/bin/socat TCP-LISTEN:${toString connection.localPort},bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:%t/opencode/${name}.sock";
           };
         }
