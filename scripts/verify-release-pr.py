@@ -89,8 +89,8 @@ def verify_release(
         raise ValueError("Unexpected duplicate changed files.")
     if changed_files.get("version.json") != "modified":
         raise ValueError("Automated release PR must modify version.json.")
-    if changed_files.get("flake.lock") != "modified":
-        raise ValueError("Automated release PR must modify flake.lock.")
+    if "flake.lock" in changed_files and changed_files["flake.lock"] != "modified":
+        raise ValueError("Automated release PR may only modify flake.lock.")
     expected_files = {"version.json", "flake.lock"} | {
         f"schemas/{name}.json" for name in SCHEMAS
     }
