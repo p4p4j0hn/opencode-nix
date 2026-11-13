@@ -78,12 +78,16 @@ class RuleSetTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "required checks"):
             policy.check_rulesets(
                 [{"id": 22, "target": "branch", "enforcement": "active"}],
-                lambda _: ruleset(bypass=[{"actor_id": 123, "actor_type": "Integration"}]),
+                lambda _: ruleset(
+                    bypass=[{"actor_id": 123, "actor_type": "Integration"}]
+                ),
             )
 
     def test_nonfastforward_guard_must_exist(self):
         data = ruleset()
-        data["rules"] = [rule for rule in data["rules"] if rule["type"] != "non_fast_forward"]
+        data["rules"] = [
+            rule for rule in data["rules"] if rule["type"] != "non_fast_forward"
+        ]
         with self.assertRaisesRegex(ValueError, "required checks"):
             policy.check_rulesets(
                 [{"id": 22, "target": "branch", "enforcement": "active"}],
