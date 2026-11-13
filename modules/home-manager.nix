@@ -89,10 +89,7 @@ in
       [
         "extraPackages"
         "enableMcpIntegration"
-        "cli"
         "tui"
-        "mutableSettings"
-        "validateFiles"
         "web"
         "context"
         "commands"
@@ -103,6 +100,19 @@ in
       ];
   options.programs.opencode-nix = {
     enable = mkEnableOption "OpenCode from the opencode-nix flake";
+    compatibility.homeManager26_05 = mkEnableOption "Home Manager 26.05 compatibility";
+    cli = mkOption {
+      type = types.attrsOf types.anything;
+      default = { };
+    };
+    mutableSettings = mkOption {
+      type = types.bool;
+      default = false;
+    };
+    validateFiles = mkOption {
+      type = types.attrsOf types.bool;
+      default = { };
+    };
     package = mkOption {
       type = types.package;
       default = opencodePkg;
@@ -227,6 +237,9 @@ in
       package = localClientPackage;
       inherit (cfg) settings;
       skills.compaction-recovery = mkIf cfg.recoverySkill.enable ../skills/compaction-recovery/SKILL.md;
+    }
+    // lib.optionalAttrs (!cfg.compatibility.homeManager26_05) {
+      inherit (cfg) cli mutableSettings validateFiles;
     };
     home.packages = lib.mapAttrsToList attachCommand connections;
     systemd.user.services =
