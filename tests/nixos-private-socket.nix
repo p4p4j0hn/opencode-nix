@@ -11,10 +11,6 @@ pkgs.testers.nixosTest {
       { config, ... }:
       {
         imports = [ home-manager.nixosModules.home-manager ];
-        boot.kernel.sysctl = {
-          "kernel.unprivileged_userns_clone" = 1;
-          "user.max_user_namespaces" = 1024;
-        };
         networking.firewall.enable = false;
         environment.systemPackages = [
           pkgs.curl
