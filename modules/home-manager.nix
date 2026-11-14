@@ -282,115 +282,117 @@ in
       inherit (cfg) cli mutableSettings validateFiles;
     };
     home.packages = lib.mapAttrsToList attachCommand connections;
-    systemd.user.services =
-      lib.optionalAttrs cfg.backend.enable {
-        opencode-backend = {
-          Unit = {
-            Description = "OpenCode persistent backend";
-            After = [ "network-online.target" ];
-            Wants = [ "network-online.target" ];
-          };
-          Service = {
-            ExecStart =
-              if cfg.backend.passwordCredential == null then
-                "${lib.getExe cfg.package} serve --hostname ${
-                  lib.escapeShellArg (if cfg.backend.privateSocket.enable then "127.0.0.1" else cfg.backend.host)
-                } --port ${toString cfg.backend.port}"
-              else
-                pkgs.writeShellScript "opencode-backend" ''
-                  set -euo pipefail
-                  export OPENCODE_PASSWORD="$(cat "$CREDENTIALS_DIRECTORY/opencode-password")"
-                  exec ${lib.getExe cfg.package} serve --hostname ${
+    systemd.user = {
+      services =
+        lib.optionalAttrs cfg.backend.enable {
+          opencode-backend = {
+            Unit = {
+              Description = "OpenCode persistent backend";
+              After = [ "network-online.target" ];
+              Wants = [ "network-online.target" ];
+            };
+            Service = {
+              ExecStart =
+                if cfg.backend.passwordCredential == null then
+                  "${lib.getExe cfg.package} serve --hostname ${
                     lib.escapeShellArg (if cfg.backend.privateSocket.enable then "127.0.0.1" else cfg.backend.host)
-                  } --port ${toString cfg.backend.port}
-                '';
-            ExecStartPre = lib.optional cfg.backend.takeover.enable "${pkgs.python3}/bin/python3 ${pkgs.writeText "opencode-takeover.py" (builtins.readFile ../scripts/takeover-port.py)} --port ${toString cfg.backend.port} --grace-seconds ${toString cfg.backend.takeover.graceSeconds}";
-            Environment = lib.optional cfg.backend.takeover.enable "OPENCODE_LSOF=${pkgs.lsof}/bin/lsof";
-            Restart = "always";
-            RestartSec = "2s";
-            RestartSteps = 8;
-            RestartMaxDelaySec = "5min";
-            PrivateNetwork = cfg.backend.privateSocket.enable;
-            EnvironmentFile = lib.optional (cfg.backend.environmentFile != null) cfg.backend.environmentFile;
-            LoadCredential = lib.optional (
-              cfg.backend.passwordCredential != null
-            ) "opencode-password:${cfg.backend.passwordCredential}";
+                  } --port ${toString cfg.backend.port}"
+                else
+                  pkgs.writeShellScript "opencode-backend" ''
+                    set -euo pipefail
+                    export OPENCODE_PASSWORD="$(cat "$CREDENTIALS_DIRECTORY/opencode-password")"
+                    exec ${lib.getExe cfg.package} serve --hostname ${
+                      lib.escapeShellArg (if cfg.backend.privateSocket.enable then "127.0.0.1" else cfg.backend.host)
+                    } --port ${toString cfg.backend.port}
+                  '';
+              ExecStartPre = lib.optional cfg.backend.takeover.enable "${pkgs.python3}/bin/python3 ${pkgs.writeText "opencode-takeover.py" (builtins.readFile ../scripts/takeover-port.py)} --port ${toString cfg.backend.port} --grace-seconds ${toString cfg.backend.takeover.graceSeconds}";
+              Environment = lib.optional cfg.backend.takeover.enable "OPENCODE_LSOF=${pkgs.lsof}/bin/lsof";
+              Restart = "always";
+              RestartSec = "2s";
+              RestartSteps = 8;
+              RestartMaxDelaySec = "5min";
+              PrivateNetwork = cfg.backend.privateSocket.enable;
+              EnvironmentFile = lib.optional (cfg.backend.environmentFile != null) cfg.backend.environmentFile;
+              LoadCredential = lib.optional (
+                cfg.backend.passwordCredential != null
+              ) "opencode-password:${cfg.backend.passwordCredential}";
+            };
+            Install.WantedBy = [ "default.target" ];
           };
-          Install.WantedBy = [ "default.target" ];
-        };
-      }
-      // lib.optionalAttrs cfg.backend.privateSocket.enable {
+        }
+        // lib.optionalAttrs cfg.backend.privateSocket.enable {
+          opencode-proxy = {
+            Unit = {
+              Description = "OpenCode private Unix socket proxy";
+              Requires = [
+                "opencode-proxy.socket"
+                "opencode-backend.service"
+              ];
+              After = [ "opencode-backend.service" ];
+              JoinsNamespaceOf = [ "opencode-backend.service" ];
+            };
+            Service = {
+              PrivateNetwork = true;
+              ExecStart = "${pkgs.systemd}/lib/systemd/systemd-socket-proxyd 127.0.0.1:${toString cfg.backend.port}";
+            };
+          };
+        }
+        // (lib.mapAttrs' (
+          name: connection:
+          lib.nameValuePair (clientProxyServiceName name) {
+            Unit = {
+              Description = "OpenCode client private TCP compatibility proxy (${name})";
+            };
+            Service = {
+              PrivateNetwork = true;
+              ExecStart = "${pkgs.socat}/bin/socat TCP-LISTEN:${toString connection.localPort},bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:%t/opencode/${name}.sock";
+            };
+          }
+        ) (lib.filterAttrs (_: c: c.transport == "ssh-unix") connections))
+        // (lib.mapAttrs' (
+          name: connection:
+          lib.nameValuePair (tunnelServiceName name) {
+            Unit = {
+              Description = "SSH tunnel to OpenCode backend (${name})";
+              After = [ "network-online.target" ];
+              Wants = [ "network-online.target" ];
+            };
+            Service = {
+              Type = "simple";
+              ExecStart = "${pkgs.openssh}/bin/ssh -N -T -o BatchMode=yes -o ExitOnForwardFailure=yes -L 127.0.0.1:${toString connection.localPort}:127.0.0.1:${toString connection.remotePort} ${lib.escapeShellArg connection.sshTarget}";
+              Restart = "on-failure";
+              RestartSec = "5s";
+            };
+          }
+        ) (lib.filterAttrs (_: c: c.transport == "ssh") connections))
+        // (lib.mapAttrs' (
+          name: connection:
+          lib.nameValuePair (tunnelServiceName name) {
+            Unit.Description = "SSH Unix socket tunnel to OpenCode backend (${name})";
+            Service = {
+              Type = "simple";
+              ExecStart = "${pkgs.openssh}/bin/ssh -N -T -o BatchMode=yes -o ExitOnForwardFailure=yes -o StreamLocalBindUnlink=yes -L %t/opencode/${name}.sock:${connection.remoteSocket} ${lib.escapeShellArg connection.sshTarget}";
+              Restart = "on-failure";
+              RestartSec = "5s";
+            };
+          }
+        ) (lib.filterAttrs (_: c: c.transport == "ssh-unix") connections));
+      sockets = lib.optionalAttrs cfg.backend.privateSocket.enable {
         opencode-proxy = {
-          Unit = {
-            Description = "OpenCode private Unix socket proxy";
-            Requires = [
-              "opencode-proxy.socket"
-              "opencode-backend.service"
-            ];
-            After = [ "opencode-backend.service" ];
-            JoinsNamespaceOf = [ "opencode-backend.service" ];
+          Unit.Description = "OpenCode private Unix socket";
+          Socket = {
+            ListenStream = "%t/opencode/opencode.sock";
+            SocketMode = "0600";
+            DirectoryMode = "0700";
+            RemoveOnStop = true;
           };
-          Service = {
-            PrivateNetwork = true;
-            ExecStart = "${pkgs.systemd}/lib/systemd/systemd-socket-proxyd 127.0.0.1:${toString cfg.backend.port}";
-          };
+          Install.WantedBy = [ "sockets.target" ];
         };
-      }
-      // (lib.mapAttrs' (
-        name: connection:
-        lib.nameValuePair (clientProxyServiceName name) {
-          Unit = {
-            Description = "OpenCode client private TCP compatibility proxy (${name})";
-          };
-          Service = {
-            PrivateNetwork = true;
-            ExecStart = "${pkgs.socat}/bin/socat TCP-LISTEN:${toString connection.localPort},bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:%t/opencode/${name}.sock";
-          };
-        }
-      ) (lib.filterAttrs (_: c: c.transport == "ssh-unix") connections))
-      // (lib.mapAttrs' (
-        name: connection:
-        lib.nameValuePair (tunnelServiceName name) {
-          Unit = {
-            Description = "SSH tunnel to OpenCode backend (${name})";
-            After = [ "network-online.target" ];
-            Wants = [ "network-online.target" ];
-          };
-          Service = {
-            Type = "simple";
-            ExecStart = "${pkgs.openssh}/bin/ssh -N -T -o BatchMode=yes -o ExitOnForwardFailure=yes -L 127.0.0.1:${toString connection.localPort}:127.0.0.1:${toString connection.remotePort} ${lib.escapeShellArg connection.sshTarget}";
-            Restart = "on-failure";
-            RestartSec = "5s";
-          };
-        }
-      ) (lib.filterAttrs (_: c: c.transport == "ssh") connections))
-      // (lib.mapAttrs' (
-        name: connection:
-        lib.nameValuePair (tunnelServiceName name) {
-          Unit.Description = "SSH Unix socket tunnel to OpenCode backend (${name})";
-          Service = {
-            Type = "simple";
-            ExecStart = "${pkgs.openssh}/bin/ssh -N -T -o BatchMode=yes -o ExitOnForwardFailure=yes -o StreamLocalBindUnlink=yes -L %t/opencode/${name}.sock:${connection.remoteSocket} ${lib.escapeShellArg connection.sshTarget}";
-            Restart = "on-failure";
-            RestartSec = "5s";
-          };
-        }
-      ) (lib.filterAttrs (_: c: c.transport == "ssh-unix") connections));
-    systemd.user.sockets = lib.optionalAttrs cfg.backend.privateSocket.enable {
-      opencode-proxy = {
-        Unit.Description = "OpenCode private Unix socket";
-        Socket = {
-          ListenStream = "%t/opencode/opencode.sock";
-          SocketMode = "0600";
-          DirectoryMode = "0700";
-          RemoveOnStop = true;
-        };
-        Install.WantedBy = [ "sockets.target" ];
       };
+      tmpfiles.rules = lib.optional (
+        cfg.backend.privateSocket.enable
+        || lib.any (c: c.transport == "ssh-unix") (lib.attrValues connections)
+      ) "d %t/opencode 0700 - - -";
     };
-    systemd.user.tmpfiles.rules = lib.optional (
-      cfg.backend.privateSocket.enable
-      || lib.any (c: c.transport == "ssh-unix") (lib.attrValues connections)
-    ) "d %t/opencode 0700 - - -";
   };
 }

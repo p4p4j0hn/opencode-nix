@@ -1,7 +1,7 @@
 { pkgs }:
 pkgs.testers.nixosTest {
   name = "opencode-nixos-smoke";
-  nodes.smoke = { ... }: {
+  nodes.smoke = _: {
     services.getty.autologinUser = "root";
   };
   testScript = ''

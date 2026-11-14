@@ -12,16 +12,111 @@ pkgs.testers.nixosTest {
       {
         imports = [ home-manager.nixosModules.home-manager ];
         networking.firewall.enable = false;
-        environment.systemPackages = [
-          pkgs.curl
-          pkgs.openssh
-          pkgs.sshpass
-          pkgs.socat
-        ];
-        systemd.tmpfiles.rules = [
-          "d /run/opencode 0700 ci users -"
-          "d /run/user/1000/opencode 0700 ci users -"
-        ];
+        environment = {
+          systemPackages = [
+            pkgs.curl
+            pkgs.openssh
+            pkgs.sshpass
+            pkgs.socat
+          ];
+          etc = {
+            "ci-key" = {
+              mode = "0600";
+              user = "ci";
+              text = ''
+                -----BEGIN OPENSSH PRIVATE KEY-----
+                b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+                QyNTUxOQAAACDwxfxnl/MwhWHkwuvwhmHEUcr/yprqkp4H6DQdxdMJ1gAAAJC0Ls9PtC7P
+                TwAAAAtzc2gtZWQyNTUxOQAAACDwxfxnl/MwhWHkwuvwhmHEUcr/yprqkp4H6DQdxdMJ1g
+                AAAEDN+Kh/p+VXuP+aiXHV5/iGTlB9gBmHKTy7ox6kUXQv6vDF/GeX8zCFYeTC6/CGYcRR
+                yv/KmuqSngfoNB3F0wnWAAAADGpvaG5AZGVmaWFudAE=
+                -----END OPENSSH PRIVATE KEY-----
+              '';
+            };
+            "opencode-password".text = "secret\n";
+            "fake-backend.py".text = ''
+              import base64
+              from http.server import BaseHTTPRequestHandler, HTTPServer
+
+              class Handler(BaseHTTPRequestHandler):
+                  def do_GET(self):
+                      expected = "Basic " + base64.b64encode(b"opencode:secret").decode()
+                      if self.headers.get("Authorization") != expected:
+                          self.send_response(401)
+                          self.send_header("WWW-Authenticate", "Basic")
+                          self.end_headers()
+                          return
+                      self.send_response(200)
+                      self.end_headers()
+                      self.wfile.write(b"authenticated backend")
+                  def log_message(self, *_):
+                      pass
+
+              HTTPServer(("127.0.0.1", 4096), Handler).serve_forever()
+            '';
+            "legacy-backend.py".text = ''
+              from http.server import BaseHTTPRequestHandler, HTTPServer
+              class Handler(BaseHTTPRequestHandler):
+                  def do_GET(self):
+                      self.send_response(200)
+                      self.end_headers()
+                      self.wfile.write(b"legacy backend")
+                  def log_message(self, *_):
+                      pass
+              HTTPServer(("127.0.0.1", 4097), Handler).serve_forever()
+            '';
+          };
+        };
+        systemd = {
+          tmpfiles.rules = [
+            "d /run/opencode 0700 ci users -"
+            "d /run/user/1000/opencode 0700 ci users -"
+          ];
+          services = {
+            fake-opencode = {
+              serviceConfig = {
+                ExecStart = "${pkgs.python3}/bin/python3 /etc/fake-backend.py";
+                PrivateNetwork = true;
+              };
+            };
+            legacy-opencode = {
+              serviceConfig.ExecStart = "${pkgs.python3}/bin/python3 /etc/legacy-backend.py";
+            };
+            client-compat-test = {
+              requires = [ "opencode-proxy.service" ];
+              after = [ "opencode-proxy.service" ];
+              unitConfig.JoinsNamespaceOf = "opencode-proxy.service";
+              serviceConfig = {
+                PrivateNetwork = true;
+                ExecStart = "${pkgs.bash}/bin/bash -c '${pkgs.socat}/bin/socat TCP-LISTEN:14096,bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:/run/opencode/opencode.sock & pid=$!; trap \"kill $pid\" EXIT; sleep 0.2; ${pkgs.curl}/bin/curl -fsS -u opencode:secret http://127.0.0.1:14096/'";
+                Type = "oneshot";
+              };
+            };
+            opencode-proxy = {
+              requires = [
+                "opencode-proxy.socket"
+                "fake-opencode.service"
+              ];
+              after = [ "fake-opencode.service" ];
+              unitConfig.JoinsNamespaceOf = "fake-opencode.service";
+              serviceConfig = {
+                PrivateNetwork = true;
+                ExecStart = "${pkgs.systemd}/lib/systemd/systemd-socket-proxyd 127.0.0.1:4096";
+              };
+            };
+          };
+          sockets = {
+            opencode-proxy = {
+              socketConfig = {
+                ListenStream = "/run/opencode/opencode.sock";
+                SocketMode = "0600";
+                DirectoryMode = "0700";
+                SocketUser = "ci";
+                SocketGroup = "users";
+              };
+            };
+          };
+        };
         users.users.ci = {
           isNormalUser = true;
           password = "ci";
@@ -30,127 +125,48 @@ pkgs.testers.nixosTest {
             "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPDF/GeX8zCFYeTC6/CGYcRRyv/KmuqSngfoNB3F0wnW john@defiant"
           ];
         };
-        environment.etc."ci-key" = {
-          mode = "0600";
-          user = "ci";
-          text = ''
-            -----BEGIN OPENSSH PRIVATE KEY-----
-            b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
-            QyNTUxOQAAACDwxfxnl/MwhWHkwuvwhmHEUcr/yprqkp4H6DQdxdMJ1gAAAJC0Ls9PtC7P
-            TwAAAAtzc2gtZWQyNTUxOQAAACDwxfxnl/MwhWHkwuvwhmHEUcr/yprqkp4H6DQdxdMJ1g
-            AAAEDN+Kh/p+VXuP+aiXHV5/iGTlB9gBmHKTy7ox6kUXQv6vDF/GeX8zCFYeTC6/CGYcRR
-            yv/KmuqSngfoNB3F0wnWAAAADGpvaG5AZGVmaWFudAE=
-            -----END OPENSSH PRIVATE KEY-----
-          '';
-        };
-        environment.etc."opencode-password".text = "secret\n";
-        services.openssh.enable = true;
-        services.openssh.settings = {
-          PasswordAuthentication = true;
-          AllowStreamLocalForwarding = "yes";
+        services.openssh = {
+          enable = true;
+          settings = {
+            PasswordAuthentication = true;
+            AllowStreamLocalForwarding = "yes";
+          };
         };
         home-manager.users.ci = {
           imports = [ self.homeManagerModules.default ];
           home.stateVersion = "25.11";
-          programs.opencode-nix = {
-            enable = true;
-            backend.enable = false;
-            package = pkgs.writeShellScriptBin "opencode-fixture-client" ''
-              set -euo pipefail
-              if [[ "$1" != "--server" ]]; then exit 2; fi
-              ${pkgs.curl}/bin/curl -fsS -u opencode:secret "$2"
-            '';
-            client.connections.fixture = {
-              transport = "ssh-unix";
-              sshTarget = "ci@localhost";
-              remoteSocket = "/run/opencode/opencode.sock";
-              localPort = 15096;
-              passwordFile = "/etc/opencode-password";
+          programs = {
+            opencode-nix = {
+              enable = true;
+              backend.enable = false;
+              package = pkgs.writeShellScriptBin "opencode-fixture-client" ''
+                set -euo pipefail
+                if [[ "$1" != "--server" ]]; then exit 2; fi
+                ${pkgs.curl}/bin/curl -fsS -u opencode:secret "$2"
+              '';
+              client.connections.fixture = {
+                transport = "ssh-unix";
+                sshTarget = "ci@localhost";
+                remoteSocket = "/run/opencode/opencode.sock";
+                localPort = 15096;
+                passwordFile = "/etc/opencode-password";
+              };
             };
-          };
-          programs.ssh.matchBlocks."*" = {
-            identityFile = "/etc/ci-key";
-            extraOptions = {
-              StrictHostKeyChecking = "no";
-              UserKnownHostsFile = "/dev/null";
+            ssh = {
+              matchBlocks."*" = {
+                identityFile = "/etc/ci-key";
+                extraOptions = {
+                  StrictHostKeyChecking = "no";
+                  UserKnownHostsFile = "/dev/null";
+                };
+              };
+              extraConfig = ''
+                Host *
+                  IdentityFile /etc/ci-key
+                  StrictHostKeyChecking no
+                  UserKnownHostsFile /dev/null
+              '';
             };
-          };
-          programs.ssh.extraConfig = ''
-            Host *
-              IdentityFile /etc/ci-key
-              StrictHostKeyChecking no
-              UserKnownHostsFile /dev/null
-          '';
-        };
-        environment.etc."fake-backend.py".text = ''
-          import base64
-          from http.server import BaseHTTPRequestHandler, HTTPServer
-
-          class Handler(BaseHTTPRequestHandler):
-              def do_GET(self):
-                  expected = "Basic " + base64.b64encode(b"opencode:secret").decode()
-                  if self.headers.get("Authorization") != expected:
-                      self.send_response(401)
-                      self.send_header("WWW-Authenticate", "Basic")
-                      self.end_headers()
-                      return
-                  self.send_response(200)
-                  self.end_headers()
-                  self.wfile.write(b"authenticated backend")
-              def log_message(self, *_):
-                  pass
-
-          HTTPServer(("127.0.0.1", 4096), Handler).serve_forever()
-        '';
-        environment.etc."legacy-backend.py".text = ''
-          from http.server import BaseHTTPRequestHandler, HTTPServer
-          class Handler(BaseHTTPRequestHandler):
-              def do_GET(self):
-                  self.send_response(200)
-                  self.end_headers()
-                  self.wfile.write(b"legacy backend")
-              def log_message(self, *_):
-                  pass
-          HTTPServer(("127.0.0.1", 4097), Handler).serve_forever()
-        '';
-        systemd.services.fake-opencode = {
-          serviceConfig = {
-            ExecStart = "${pkgs.python3}/bin/python3 /etc/fake-backend.py";
-            PrivateNetwork = true;
-          };
-        };
-        systemd.services.legacy-opencode = {
-          serviceConfig.ExecStart = "${pkgs.python3}/bin/python3 /etc/legacy-backend.py";
-        };
-        systemd.services.client-compat-test = {
-          requires = [ "opencode-proxy.service" ];
-          after = [ "opencode-proxy.service" ];
-          unitConfig.JoinsNamespaceOf = "opencode-proxy.service";
-          serviceConfig = {
-            PrivateNetwork = true;
-            ExecStart = "${pkgs.bash}/bin/bash -c '${pkgs.socat}/bin/socat TCP-LISTEN:14096,bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:/run/opencode/opencode.sock & pid=$!; trap \"kill $pid\" EXIT; sleep 0.2; ${pkgs.curl}/bin/curl -fsS -u opencode:secret http://127.0.0.1:14096/'";
-            Type = "oneshot";
-          };
-        };
-        systemd.sockets.opencode-proxy = {
-          socketConfig = {
-            ListenStream = "/run/opencode/opencode.sock";
-            SocketMode = "0600";
-            DirectoryMode = "0700";
-            SocketUser = "ci";
-            SocketGroup = "users";
-          };
-        };
-        systemd.services.opencode-proxy = {
-          requires = [
-            "opencode-proxy.socket"
-            "fake-opencode.service"
-          ];
-          after = [ "fake-opencode.service" ];
-          unitConfig.JoinsNamespaceOf = "fake-opencode.service";
-          serviceConfig = {
-            PrivateNetwork = true;
-            ExecStart = "${pkgs.systemd}/lib/systemd/systemd-socket-proxyd 127.0.0.1:4096";
           };
         };
       };
