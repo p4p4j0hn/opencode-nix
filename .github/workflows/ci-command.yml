@@ -1,0 +1,36 @@
+name: CI command
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  actions: write
+  issues: write
+  pull-requests: read
+jobs:
+  dispatch:
+    if: ${{ github.event.issue.pull_request && github.event.comment.body == '/ci' && github.event.comment.author_association == 'OWNER' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Resolve the pull request head
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER" > pr.json
+          head_repo="$(python3 -c "import json; print(json.load(open('pr.json'))['head']['repo']['full_name'])")"
+          if [ "$head_repo" != "${{ github.repository }}" ]; then
+            echo "Refusing to dispatch CI for a fork pull request ($head_repo)."
+            exit 1
+          fi
+          echo "ref=$(python3 -c "import json; print(json.load(open('pr.json'))['head']['ref'])")" >> "$GITHUB_OUTPUT"
+      - name: Dispatch CI on the pull request branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --repo "${{ github.repository }}" --ref "${{ steps.pr.outputs.ref }}"
+      - name: Acknowledge the command
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+        run: gh api -X POST "repos/${{ github.repository }}/issues/comments/$COMMENT_ID/reactions" -f content=rocket
