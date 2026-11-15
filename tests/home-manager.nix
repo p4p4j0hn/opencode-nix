@@ -78,7 +78,8 @@ let
   };
   backendLinuxAssertion = builtins.any (
     item:
-    item.message == "OpenCode systemd backend requires Linux." && item.assertion == pkgs.stdenv.hostPlatform.isLinux
+    item.message == "OpenCode systemd backend requires Linux."
+    && item.assertion == pkgs.stdenv.hostPlatform.isLinux
   ) server.assertions;
   service = server.systemd.user.services.opencode-backend.Service;
   tunnel = server.systemd.user.services.opencode-tunnel-lab.Service;
