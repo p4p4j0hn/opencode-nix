@@ -14,7 +14,7 @@ let
           home = {
             username = "ci";
             homeDirectory = "/home/ci";
-            stateVersion = "25.11";
+            stateVersion = "26.11";
           };
           programs.opencode-nix = {
             enable = true;
