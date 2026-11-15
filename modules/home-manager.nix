@@ -16,7 +16,6 @@ let
   opencodePkg = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
   connections = cfg.client.connections;
   tunnelServiceName = name: "opencode-tunnel-${name}";
-  clientProxyServiceName = name: "opencode-client-proxy-${name}";
   backendServiceName = "opencode-backend.service";
   passwordSetup =
     passwordFile:
@@ -31,6 +30,36 @@ let
         echo "OpenCode password file is empty: $password_file" >&2
         exit 1
       fi
+    '';
+  netnsRunner =
+    {
+      label,
+      port,
+      socketName,
+    }:
+    pkgs.writeShellScript "opencode-${label}-netns-runner" ''
+      set -euo pipefail
+      socket_path="''${XDG_RUNTIME_DIR:-/run/user/$UID}/opencode/${socketName}"
+      ${pkgs.socat}/bin/socat TCP-LISTEN:${toString port},bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:"$socket_path" &
+      proxy_pid=$!
+      trap 'kill "$proxy_pid" 2>/dev/null || true' EXIT
+      ready=0
+      for i in $(${pkgs.coreutils}/bin/seq 1 50); do
+        if ! kill -0 "$proxy_pid" 2>/dev/null; then
+          echo "OpenCode private socket proxy failed to start" >&2
+          exit 1
+        fi
+        if (echo > /dev/tcp/127.0.0.1/${toString port}) 2>/dev/null; then
+          ready=1
+          break
+        fi
+        ${pkgs.coreutils}/bin/sleep 0.2
+      done
+      if [[ "$ready" != 1 ]]; then
+        echo "OpenCode private socket proxy failed to become ready" >&2
+        exit 1
+      fi
+      ${lib.getExe cfg.package} --server "http://127.0.0.1:${toString port}" "$@"
     '';
   attachUrl =
     connection:
@@ -60,7 +89,6 @@ let
       ''}
       ${lib.optionalString (connection.transport == "ssh-unix") ''
         ${pkgs.systemd}/bin/systemctl --user start ${lib.escapeShellArg (tunnelServiceName name)}.service
-        ${pkgs.systemd}/bin/systemctl --user start ${lib.escapeShellArg (clientProxyServiceName name)}.service
         ${pkgs.coreutils}/bin/sleep 0.2
         ready=0
         for i in $(${pkgs.coreutils}/bin/seq 1 50); do
@@ -74,7 +102,13 @@ let
       ''}
       ${
         if connection.transport == "ssh-unix" then
-          "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet -p PrivateNetwork=true -p JoinsNamespaceOf=${lib.escapeShellArg (clientProxyServiceName name)}.service -- ${lib.getExe cfg.package} --server ${lib.escapeShellArg (attachUrl connection)} \"$@\""
+          "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet -p PrivateNetwork=true -- ${
+            netnsRunner {
+              label = name;
+              port = connection.localPort;
+              socketName = "${name}.sock";
+            }
+          } \"$@\""
         else
           "exec ${lib.getExe cfg.package} --server ${lib.escapeShellArg (attachUrl connection)} \"$@\""
       }
@@ -86,7 +120,13 @@ let
        ${lib.optionalString cfg.backend.privateSocket.enable "${pkgs.systemd}/bin/systemctl --user start opencode-proxy.service"}
        ${
          if cfg.backend.privateSocket.enable then
-           "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet -p PrivateNetwork=true -p JoinsNamespaceOf=opencode-proxy.service -- ${lib.getExe cfg.package} --server ${lib.escapeShellArg "http://127.0.0.1:${toString cfg.backend.port}"} \"$@\""
+           "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet -p PrivateNetwork=true -- ${
+             netnsRunner {
+               label = "local";
+               port = cfg.backend.port;
+               socketName = "opencode.sock";
+             }
+           } \"$@\""
          else
            "exec ${lib.getExe cfg.package} --server ${lib.escapeShellArg "http://${cfg.backend.host}:${toString cfg.backend.port}"} \"$@\""
        }
@@ -337,18 +377,6 @@ in
             };
           };
         }
-        // (lib.mapAttrs' (
-          name: connection:
-          lib.nameValuePair (clientProxyServiceName name) {
-            Unit = {
-              Description = "OpenCode client private TCP compatibility proxy (${name})";
-            };
-            Service = {
-              PrivateNetwork = true;
-              ExecStart = "${pkgs.socat}/bin/socat TCP-LISTEN:${toString connection.localPort},bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:%t/opencode/${name}.sock";
-            };
-          }
-        ) (lib.filterAttrs (_: c: c.transport == "ssh-unix") connections))
         // (lib.mapAttrs' (
           name: connection:
           lib.nameValuePair (tunnelServiceName name) {

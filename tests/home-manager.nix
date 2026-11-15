@@ -83,7 +83,6 @@ let
   service = server.systemd.user.services.opencode-backend.Service;
   tunnel = server.systemd.user.services.opencode-tunnel-lab.Service;
   unixTunnel = server.systemd.user.services.opencode-tunnel-unix.Service;
-  unixProxy = server.systemd.user.services.opencode-client-proxy-unix.Service;
   privateBackend = server.systemd.user.services.opencode-backend.Service;
   privateServerSocket = server.systemd.user.sockets.opencode-proxy.Socket;
   tmpfilesOk = server.systemd.user.tmpfiles.rules == [ "d %t/opencode 0700 - - -" ];
@@ -108,7 +107,8 @@ let
   clientOk =
     pkgs.lib.hasInfix "--server" localClient
     && pkgs.lib.hasInfix "127.0.0.1:4096" localClient
-    && pkgs.lib.hasInfix "PrivateNetwork=true -p JoinsNamespaceOf=opencode-proxy.service" localClient
+    && pkgs.lib.hasInfix "PrivateNetwork=true" localClient
+    && pkgs.lib.hasInfix "netns-runner" localClient
     && pkgs.lib.hasInfix "OPENCODE_PASSWORD" localClient
     && pkgs.lib.hasInfix "opencode-password" localClient;
   disabledOk = !(client.systemd.user.services ? opencode-backend);
