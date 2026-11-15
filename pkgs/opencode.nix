@@ -15,8 +15,6 @@ let
   packages = {
     x86_64-linux = "cli-linux-x64";
     aarch64-linux = "cli-linux-arm64";
-    x86_64-darwin = "cli-darwin-x64";
-    aarch64-darwin = "cli-darwin-arm64";
   };
   hash = release.hashes.${system} or "";
 in
