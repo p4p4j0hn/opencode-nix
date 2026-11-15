@@ -3,10 +3,12 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
   nix:
+    if: ${{ github.event_name != 'pull_request' || github.head_ref == 'automation/opencode-release' }}
     strategy:
       fail-fast: false
       matrix:
@@ -64,3 +66,43 @@ jobs:
           package="$(nix build --no-link --print-out-paths .#default)"
           export OPENCODE_BIN="$package/bin/opencode"
           python3 -m unittest discover -s tests -p 'test_backend_integration.py' -v
+  vm-tests:
+    if: ${{ github.event_name != 'pull_request' || github.head_ref == 'automation/opencode-release' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            system: x86_64-linux
+          - os: ubuntu-24.04-arm
+            system: aarch64-linux
+    name: vm-tests (${{ matrix.system }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+      - name: Determine whether upstream binaries are initialized
+        id: bootstrap
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          d = json.load(open("version.json"))
+          ready = d["version"] != "0.0.0" and all(d["hashes"].values())
+          print(f"ready={'true' if ready else 'false'}")
+          PY
+      - uses: cachix/install-nix-action@v31
+        if: steps.bootstrap.outputs.ready == 'true'
+      - name: Enable KVM for the NixOS VM tests
+        if: steps.bootstrap.outputs.ready == 'true'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm && test -w /dev/kvm
+      - name: Run NixOS VM tests
+        if: steps.bootstrap.outputs.ready == 'true'
+        run: |
+          nix build --no-link \
+            .#vmTests.${{ matrix.system }}.nixos-smoke \
+            .#vmTests.${{ matrix.system }}.nixos-private-socket
