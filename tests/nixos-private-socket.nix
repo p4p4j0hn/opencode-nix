@@ -125,6 +125,10 @@ pkgs.testers.nixosTest {
             "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPDF/GeX8zCFYeTC6/CGYcRRyv/KmuqSngfoNB3F0wnW john@defiant"
           ];
         };
+        users.users.srv = {
+          isNormalUser = true;
+          linger = true;
+        };
         services.openssh = {
           enable = true;
           settings = {
@@ -169,6 +173,28 @@ pkgs.testers.nixosTest {
             };
           };
         };
+        home-manager.users.srv = {
+          imports = [ self.homeManagerModules.default ];
+          home.stateVersion = "25.11";
+          programs.opencode-nix = {
+            enable = true;
+            package = pkgs.writeShellScriptBin "opencode" ''
+              set -euo pipefail
+              if [[ "''${1:-}" == "serve" ]]; then
+                exec ${pkgs.python3}/bin/python3 /etc/fake-backend.py
+              fi
+              if [[ "''${1:-}" == "--server" ]]; then
+                exec ${pkgs.curl}/bin/curl -fsS -u opencode:secret "$2"
+              fi
+              exit 2
+            '';
+            backend = {
+              enable = true;
+              privateSocket.enable = true;
+            };
+            client.passwordFile = "/etc/opencode-password";
+          };
+        };
       };
 
   };
@@ -191,6 +217,15 @@ pkgs.testers.nixosTest {
     server.succeed("systemctl start opencode-proxy.service")
     server.succeed("systemd-run --machine=ci@.host --user --wait /home/ci/.nix-profile/bin/opencode-fixture --help >/tmp/opencode-help 2>&1 || (cat /tmp/opencode-help; su - ci -c 'journalctl --user -u opencode-tunnel-fixture.service --no-pager'; false)")
     server.succeed("test -s /tmp/opencode-help && echo GENERATED_WRAPPER_OK")
+    srv_uid = server.succeed("id -u srv").strip()
+    server.wait_until_succeeds("su - srv -c 'systemctl --user is-active opencode-backend.service'")
+    server.wait_until_succeeds("su - srv -c 'systemctl --user is-active opencode-proxy.socket'")
+    server.succeed(f"test -S /run/user/{srv_uid}/opencode/opencode.sock")
+    server.succeed(f"test \"$(stat -c %a /run/user/{srv_uid}/opencode/opencode.sock)\" = 600")
+    server.succeed("! ss -lnt | grep -q ':4096 '")
+    server.succeed("su - srv -c '/home/srv/.nix-profile/bin/opencode' > /tmp/real-pair-out 2>&1 || (cat /tmp/real-pair-out; su - srv -c 'journalctl --user -u opencode-proxy.service -u opencode-backend.service --no-pager'; false)")
+    server.succeed("grep -q 'authenticated backend' /tmp/real-pair-out")
+    server.succeed("echo REAL_USER_PAIR_OK")
     server.succeed("systemctl start client-compat-test.service")
     server.succeed("echo CLIENT_PRIVATE_PROXY_OK")
     server.succeed("systemctl start legacy-opencode.service")
