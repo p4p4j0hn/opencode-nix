@@ -84,7 +84,7 @@ let
   tunnel = server.systemd.user.services.opencode-tunnel-lab.Service;
   unixTunnel = server.systemd.user.services.opencode-tunnel-unix.Service;
   privateBackend = server.systemd.user.services.opencode-backend.Service;
-  privateServerSocket = server.systemd.user.sockets.opencode-proxy.Socket;
+  backendScript = builtins.readFile (builtins.head privateBackend.ExecStart);
   tmpfilesOk = server.systemd.user.tmpfiles.rules == [ "d %t/opencode 0700 - - -" ];
   localClient = server.programs.opencode.package.passthru.opencodeClientScript;
   serviceOk =
@@ -101,9 +101,9 @@ let
     ) != null;
   privateBackendOk =
     privateBackend.PrivateNetwork
-    && privateServerSocket.ListenStream == "%t/opencode/opencode.sock"
-    && privateServerSocket.SocketMode == "0600"
-    && privateServerSocket.DirectoryMode == "0700";
+    && builtins.match ".*UNIX-LISTEN.*mode=0600.*" backendScript != null
+    && builtins.match ".*opencode/opencode.sock.*" backendScript != null
+    && !(server.systemd.user.services ? opencode-proxy);
   localRunner = builtins.readFile server.programs.opencode.package.passthru.opencodeLocalRunner;
   clientOk =
     pkgs.lib.hasInfix "--server" localRunner
