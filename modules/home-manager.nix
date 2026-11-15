@@ -113,6 +113,11 @@ let
           "exec ${lib.getExe cfg.package} --server ${lib.escapeShellArg (attachUrl connection)} \"$@\""
       }
     '';
+  localRunner = netnsRunner {
+    label = "local";
+    port = cfg.backend.port;
+    socketName = "opencode.sock";
+  };
   localClientScript = ''
     set -euo pipefail
     if ${pkgs.systemd}/bin/systemctl --user is-active --quiet ${lib.escapeShellArg backendServiceName} 2>/dev/null; then
@@ -120,13 +125,7 @@ let
        ${lib.optionalString cfg.backend.privateSocket.enable "${pkgs.systemd}/bin/systemctl --user start opencode-proxy.service"}
        ${
          if cfg.backend.privateSocket.enable then
-           "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet -p PrivateNetwork=true -- ${
-             netnsRunner {
-               label = "local";
-               port = cfg.backend.port;
-               socketName = "opencode.sock";
-             }
-           } \"$@\""
+           "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet -p PrivateNetwork=true -- ${localRunner} \"$@\""
          else
            "exec ${lib.getExe cfg.package} --server ${lib.escapeShellArg "http://${cfg.backend.host}:${toString cfg.backend.port}"} \"$@\""
        }
@@ -145,6 +144,7 @@ let
         };
         passthru = (cfg.package.passthru or { }) // {
           opencodeClientScript = localClientScript;
+          opencodeLocalRunner = localRunner;
         };
       });
 in

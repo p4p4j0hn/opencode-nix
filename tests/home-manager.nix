@@ -104,9 +104,10 @@ let
     && privateServerSocket.ListenStream == "%t/opencode/opencode.sock"
     && privateServerSocket.SocketMode == "0600"
     && privateServerSocket.DirectoryMode == "0700";
+  localRunner = builtins.readFile server.programs.opencode.package.passthru.opencodeLocalRunner;
   clientOk =
-    pkgs.lib.hasInfix "--server" localClient
-    && pkgs.lib.hasInfix "127.0.0.1:4096" localClient
+    pkgs.lib.hasInfix "--server" localRunner
+    && pkgs.lib.hasInfix "http://127.0.0.1:4096" localRunner
     && pkgs.lib.hasInfix "PrivateNetwork=true" localClient
     && pkgs.lib.hasInfix "netns-runner" localClient
     && pkgs.lib.hasInfix "OPENCODE_PASSWORD" localClient
