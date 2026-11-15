@@ -3,6 +3,7 @@
 
 Fail closed if an unknown process owns the port. Linux only: uses /proc and lsof.
 """
+
 import argparse
 import os
 import signal
