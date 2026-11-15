@@ -358,6 +358,8 @@ in
               Environment = lib.optional cfg.backend.takeover.enable "OPENCODE_LSOF=${pkgs.lsof}/bin/lsof";
               Restart = "always";
               RestartSec = "2s";
+              RuntimeDirectory = lib.optional cfg.backend.privateSocket.enable "opencode";
+              RuntimeDirectoryMode = lib.optional cfg.backend.privateSocket.enable "0700";
               RestartSteps = 8;
               RestartMaxDelaySec = "5min";
               PrivateNetwork = cfg.backend.privateSocket.enable;
@@ -391,6 +393,8 @@ in
             Unit.Description = "SSH Unix socket tunnel to OpenCode backend (${name})";
             Service = {
               Type = "simple";
+              RuntimeDirectory = "opencode";
+              RuntimeDirectoryMode = "0700";
               ExecStart = "${pkgs.openssh}/bin/ssh -N -T -o BatchMode=yes -o ExitOnForwardFailure=yes -o StreamLocalBindUnlink=yes -L %t/opencode/${name}.sock:${connection.remoteSocket} ${lib.escapeShellArg connection.sshTarget}";
               Restart = "on-failure";
               RestartSec = "5s";
