@@ -55,7 +55,7 @@
         {
           package = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
         }
-        // nixpkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+        // nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
           takeover-unit-tests =
             pkgs.runCommand "opencode-takeover-unit-tests"
               {
@@ -89,7 +89,7 @@
       );
       vmTests = eachSystem (
         pkgs:
-        nixpkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+        nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
           nixos-smoke = import ./tests/nixos-smoke.nix { inherit pkgs; };
           nixos-private-socket = import ./tests/nixos-private-socket.nix {
             inherit pkgs self home-manager;
