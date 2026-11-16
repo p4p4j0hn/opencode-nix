@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Unit tests: no real processes are signalled."""
+
 import importlib.util
 import signal
 import unittest

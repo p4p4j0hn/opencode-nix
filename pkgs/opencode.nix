@@ -30,8 +30,11 @@ stdenvNoCC.mkDerivation {
     url = "https://registry.npmjs.org/@opencode/${packages.${system}}/-/${packages.${system}}-${release.version}.tgz";
     inherit hash;
   };
-  nativeBuildInputs = [ makeWrapper ] ++ lib.optionals stdenv.isLinux [ autoPatchelfHook ];
-  buildInputs = lib.optionals stdenv.isLinux [
+  nativeBuildInputs = [
+    makeWrapper
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [ autoPatchelfHook ];
+  buildInputs = lib.optionals stdenv.hostPlatform.isLinux [
     glibc
     gcc-unwrapped.lib
     zlib

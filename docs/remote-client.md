@@ -60,3 +60,32 @@ server requires a password.
 
 SSH tunnelling keeps the OpenCode service bound to loopback on the host.
 Never expose an unauthenticated OpenCode backend directly to the internet.
+
+## Private Unix-socket transport
+
+For hosts where even a loopback TCP listener must not exist in the host
+namespace, enable the opt-in private backend:
+
+```nix
+backend.privateSocket.enable = true;
+```
+
+The backend then runs in a private systemd network namespace and is exposed
+through the user-owned, mode-`0600` socket
+`$XDG_RUNTIME_DIR/opencode/opencode.sock`. The socket directory is mode `0700`.
+
+Use the Unix-socket SSH transport from a client:
+
+```nix
+client.connections.lab = {
+  transport = "ssh-unix";
+  sshTarget = "opencode-host";
+  remoteSocket = "/run/user/1000/opencode/opencode.sock";
+  localPort = 14096;
+};
+```
+
+The remote SSH daemon must permit Unix-domain forwarding with
+`AllowStreamLocalForwarding yes`; a more specific `Match` block must not
+override it with `no`. Verify the socket with `stat` and verify that the
+backend port is absent from the host namespace with `ss -lnt`.

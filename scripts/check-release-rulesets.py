@@ -4,6 +4,7 @@
 Reading repository rulesets uses the metadata-visible rulesets API, rather
 than the legacy branch-protection API that rejects GitHub App tokens.
 """
+
 import json
 import os
 import subprocess

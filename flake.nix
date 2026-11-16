@@ -2,7 +2,7 @@
   description = "OpenCode upstream binaries and optional Home Manager backend";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     home-manager.url = "github:nix-community/home-manager/master";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
   };
@@ -55,7 +55,7 @@
         {
           package = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
         }
-        // nixpkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+        // nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
           takeover-unit-tests =
             pkgs.runCommand "opencode-takeover-unit-tests"
               {
@@ -85,6 +85,15 @@
                 check-jsonschema --schemafile "$configSchema" config.json
                 touch "$out"
               '';
+        }
+      );
+      vmTests = eachSystem (
+        pkgs:
+        nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+          nixos-smoke = import ./tests/nixos-smoke.nix { inherit pkgs; };
+          nixos-private-socket = import ./tests/nixos-private-socket.nix {
+            inherit pkgs self home-manager;
+          };
         }
       );
     };
