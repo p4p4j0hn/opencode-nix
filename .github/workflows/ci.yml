@@ -1,6 +1,7 @@
 name: CI
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
   workflow_dispatch:
@@ -8,11 +9,11 @@ permissions:
   contents: read
 jobs:
   nix:
-    if: ${{ github.event_name != 'pull_request' || github.head_ref == 'automation/opencode-release' }}
+    if: ${{ github.event_name != 'pull_request' || github.head_ref == 'automation/opencode-release' || contains(github.event.pull_request.labels.*.name, 'ci:run') }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-26.04, macos-latest]
+        os: [ubuntu-26.04, ubuntu-26.04-arm]
     runs-on: ${{ matrix.os }}
     name: nix (${{ matrix.os }})
     steps:
@@ -67,7 +68,7 @@ jobs:
           export OPENCODE_BIN="$package/bin/opencode"
           python3 -m unittest discover -s tests -p 'test_backend_integration.py' -v
   vm-tests:
-    if: ${{ github.event_name != 'pull_request' || github.head_ref == 'automation/opencode-release' }}
+    if: ${{ github.event_name != 'pull_request' || github.head_ref == 'automation/opencode-release' || contains(github.event.pull_request.labels.*.name, 'ci:run') }}
     strategy:
       fail-fast: false
       matrix:

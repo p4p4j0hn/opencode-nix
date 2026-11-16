@@ -3,7 +3,7 @@
 The updater downloads upstream binaries and opens a PR against `main`.
 The `Release policy / release-policy` check verifies the bot branch only
 modifies `version.json` and that its hashes match the official published
-GitHub release asset digests. CI builds Linux/macOS before merging.
+GitHub release asset digests. CI builds Linux (x86_64 and arm64) before merging.
 
 ## Required repository settings
 
@@ -17,7 +17,7 @@ GitHub release asset digests. CI builds Linux/macOS before merging.
 4. In repository Settings > General > Pull Requests, enable **Allow auto-merge**.
 5. Under Settings > Branches > Add branch protection rule for `main`:
    require a pull request and require these three status checks to pass:
-   `nix (ubuntu-latest)`, `nix (macos-latest)`,
+   `nix (ubuntu-26.04)`, `nix (ubuntu-26.04-arm)`,
    `release-policy`. Require branches to be up to date before merging.
    Do not allow bypassing the rules. Do not require manual approvals if
    unattended merging is desired; normal code changes still need deliberate
