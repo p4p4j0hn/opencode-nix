@@ -9,7 +9,12 @@ import json
 import os
 import subprocess
 
-REQUIRED_CHECKS = {"nix (ubuntu-26.04)", "nix (ubuntu-26.04-arm)", "release-policy"}
+REQUIRED_CHECKS = {
+    "nix (ubuntu-26.04)",
+    "nix (ubuntu-26.04-arm)",
+    "release-policy",
+    "vm-tests (x86_64-linux)",
+}
 REQUIRED_RULE_TYPES = {"pull_request", "non_fast_forward", "deletion"}
 
 

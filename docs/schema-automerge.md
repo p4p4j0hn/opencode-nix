@@ -14,7 +14,8 @@ updates. Unregistered schema JSON, code, policy modifications or deleted
 schema files cannot be auto-merged.
 
 Auto-merge additionally requires an active GitHub **main ruleset** enforcing
-`release-policy`, `nix (ubuntu-26.04)`, and `nix (ubuntu-26.04-arm)`, strict
+`release-policy`, `nix (ubuntu-26.04)`, `nix (ubuntu-26.04-arm)`, and
+`vm-tests (x86_64-linux)`, strict
 up-to-date checks, pull requests, force-push and deletion protections, with
 no bypass actors. The guard uses the public rulesets API rather than the
 legacy branch-protection API, which returned HTTP 403 for the GitHub App.

@@ -16,9 +16,9 @@ GitHub release asset digests. CI builds Linux (x86_64 and arm64) before merging.
    private key (PEM). Do not put the key in the repo.
 4. In repository Settings > General > Pull Requests, enable **Allow auto-merge**.
 5. Under Settings > Branches > Add branch protection rule for `main`:
-   require a pull request and require these three status checks to pass:
+   require a pull request and require these four status checks to pass:
    `nix (ubuntu-26.04)`, `nix (ubuntu-26.04-arm)`,
-   `release-policy`. Require branches to be up to date before merging.
+   `release-policy`, `vm-tests (x86_64-linux)`. Require branches to be up to date before merging.
    Do not allow bypassing the rules. Do not require manual approvals if
    unattended merging is desired; normal code changes still need deliberate
    human review.
