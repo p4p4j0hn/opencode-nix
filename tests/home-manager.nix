@@ -114,6 +114,7 @@ let
     && pkgs.lib.hasInfix "PrivateNetwork=true" localClient
     && pkgs.lib.hasInfix "netns-runner" localClient
     && pkgs.lib.hasInfix "OPENCODE_PASSWORD" localClient
+    && pkgs.lib.hasInfix "--setenv=OPENCODE_PASSWORD" localClient
     && pkgs.lib.hasInfix "opencode-password" localClient
     && pkgs.lib.hasInfix "refusing to start the standalone client" localClient;
   disabledOk = !(client.systemd.user.services ? opencode-backend);
