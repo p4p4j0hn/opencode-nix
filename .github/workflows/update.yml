@@ -47,12 +47,25 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/update-version.py
+      - name: Check for upstream release changes
+        id: release-change
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- version.json; then
+            echo "version_changed=false" >> "$GITHUB_OUTPUT"
+            echo "No upstream binary release change; skipping PR creation."
+          else
+            echo "version_changed=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Show refreshed version and schema pins
+        if: steps.release-change.outputs.version_changed == 'true'
         run: git diff -- version.json
       - name: Update flake inputs
+        if: steps.release-change.outputs.version_changed == 'true'
         run: nix flake update
       - name: Commit V2 pins to migration branch
-        if: github.ref_name == 'feature/opencode-v2'
+        if: github.ref_name == 'feature/opencode-v2' && steps.release-change.outputs.version_changed == 'true'
         env:
           PUSH_TOKEN: ${{ steps.app.outputs.token || github.token }}
         run: |
@@ -63,7 +76,7 @@ jobs:
           git commit -m "chore: pin verified OpenCode V2 binaries"
           git -c http.extraheader="AUTHORIZATION: basic $(printf "x-access-token:%s" "$PUSH_TOKEN" | base64 -w0)" push origin HEAD:feature/opencode-v2
       - name: Open update pull request
-        if: github.ref_name != 'feature/opencode-v2'
+        if: github.ref_name != 'feature/opencode-v2' && steps.release-change.outputs.version_changed == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.app.outputs.token || github.token }}
