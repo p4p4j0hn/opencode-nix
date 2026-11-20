@@ -124,19 +124,19 @@ let
     lib.escapeShellArg (if cfg.backend.privateSocket.enable then "127.0.0.1" else cfg.backend.host)
   } --port ${toString cfg.backend.port}";
   backendCredentialExport = "export OPENCODE_SERVER_PASSWORD=\"$(cat \"$CREDENTIALS_DIRECTORY/opencode-password\")\"";
+  privateBackendScript = pkgs.writeShellScript "opencode-backend-private" ''
+    set -euo pipefail
+    ${lib.optionalString (cfg.backend.passwordCredential != null) backendCredentialExport}
+    socket_path="$XDG_RUNTIME_DIR/opencode/opencode.sock"
+    ${pkgs.coreutils}/bin/rm -f "$socket_path"
+    ${pkgs.socat}/bin/socat UNIX-LISTEN:"$socket_path",mode=0600,fork TCP:127.0.0.1:${toString cfg.backend.port} &
+    exec ${backendServeCommand}
+  '';
   backendExecStart =
     if cfg.backend.privateSocket.enable then
       pkgs.writeShellScript "opencode-backend" ''
         set -euo pipefail
-        ${lib.optionalString (cfg.backend.passwordCredential != null) backendCredentialExport}
-        if [[ -z "''${OPENCODE_BACKEND_UNDER_PASTA:-}" ]]; then
-          export OPENCODE_BACKEND_UNDER_PASTA=1
-          exec ${lib.getExe' pkgs.passt "pasta"} --config-net --foreground --quiet --no-pidns -- "$0" "$@"
-        fi
-        socket_path="$XDG_RUNTIME_DIR/opencode/opencode.sock"
-        ${pkgs.coreutils}/bin/rm -f "$socket_path"
-        ${pkgs.socat}/bin/socat UNIX-LISTEN:"$socket_path",mode=0600,fork TCP:127.0.0.1:${toString cfg.backend.port} &
-        exec ${backendServeCommand}
+        exec ${lib.getExe' pkgs.passt "pasta"} --config-net --foreground --quiet --no-pidns -- ${privateBackendScript} "$@"
       ''
     else if cfg.backend.passwordCredential == null then
       backendServeCommand
