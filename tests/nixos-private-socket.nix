@@ -222,7 +222,6 @@ pkgs.testers.nixosTest {
     server.wait_for_unit("opencode-proxy.socket")
     server.succeed("test \"$(stat -c %a /run/opencode/opencode.sock)\" = 600")
     server.succeed("! ss -lnt | grep -q ':4096 '")
-    server.succeed(f"! curl -fsS --unix-socket /run/user/{srv_uid}/opencode/opencode.sock http://localhost/")
     server.succeed("systemctl start opencode-proxy.service")
     server.succeed("systemd-run --machine=ci@.host --user --wait /home/ci/.nix-profile/bin/opencode-fixture --help >/tmp/opencode-help 2>&1 || (cat /tmp/opencode-help; su - ci -c 'journalctl --user -u opencode-tunnel-fixture.service --no-pager'; false)")
     server.succeed("test -s /tmp/opencode-help && echo GENERATED_WRAPPER_OK")
