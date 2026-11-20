@@ -102,7 +102,9 @@ let
       ''}
       ${
         if connection.transport == "ssh-unix" then
-          "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet --pty -p PrivateNetwork=true -- ${
+          "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet --pty -p PrivateNetwork=true ${
+            lib.optionalString (connection.passwordFile != null) "--setenv=OPENCODE_PASSWORD "
+          }-- ${
             netnsRunner {
               label = name;
               port = connection.localPort;
@@ -146,7 +148,9 @@ let
        ${passwordSetup cfg.client.passwordFile}
        ${
          if cfg.backend.privateSocket.enable then
-           "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet --pty -p PrivateNetwork=true -- ${localRunner} \"$@\""
+           "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet --pty -p PrivateNetwork=true ${
+             lib.optionalString (cfg.client.passwordFile != null) "--setenv=OPENCODE_PASSWORD "
+           }-- ${localRunner} \"$@\""
          else
            "exec ${lib.getExe cfg.package} --server ${lib.escapeShellArg "http://${cfg.backend.host}:${toString cfg.backend.port}"} \"$@\""
        }
