@@ -136,7 +136,7 @@ let
     if cfg.backend.privateSocket.enable then
       pkgs.writeShellScript "opencode-backend" ''
         set -euo pipefail
-        exec ${lib.getExe' pkgs.passt "pasta"} --config-net --foreground --quiet --no-pidns -- ${privateBackendScript} "$@"
+        exec ${lib.getExe' pkgs.passt "pasta"} --config-net --foreground --quiet --tcp-ports none --udp-ports none --map-host-loopback 192.168.1.2 -- ${privateBackendScript} "$@"
       ''
     else if cfg.backend.passwordCredential == null then
       backendServeCommand

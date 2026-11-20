@@ -82,7 +82,7 @@ pkgs.testers.nixosTest {
                       self.wfile.write(b"outbound-ok")
                   def log_message(self, *_):
                       pass
-              HTTPServer(("0.0.0.0", 8917), Handler).serve_forever()
+              HTTPServer(("127.0.0.1", 8917), Handler).serve_forever()
             '';
           };
         };
@@ -252,7 +252,7 @@ pkgs.testers.nixosTest {
     server.succeed("grep -q 'authenticated backend' /tmp/real-pair-out")
     server.succeed("echo REAL_USER_PAIR_OK")
     server.wait_for_unit("outbound-target.service")
-    server.succeed("nsenter -t $(pgrep -u srv -f fake-backend.py) -n curl -fsS http://192.168.1.1:8917/ | grep -q 'outbound-ok'")
+    server.succeed("nsenter -t $(pgrep -u srv -f fake-backend.py) -n curl -fsS http://192.168.1.2:8917/ | grep -q 'outbound-ok'")
     server.succeed("echo BACKEND_OUTBOUND_OK")
     server.succeed("systemctl start client-compat-test.service")
     server.succeed("echo CLIENT_PRIVATE_PROXY_OK")
