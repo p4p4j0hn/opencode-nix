@@ -129,6 +129,12 @@ let
       pkgs.writeShellScript "opencode-backend" ''
         set -euo pipefail
         ${lib.optionalString (cfg.backend.passwordCredential != null) backendCredentialExport}
+        ${lib.optionalString (cfg.backend.privateSocket.networking == "pasta") ''
+          if [[ -z "''${OPENCODE_BACKEND_UNDER_PASTA:-}" ]]; then
+            export OPENCODE_BACKEND_UNDER_PASTA=1
+            exec ${lib.getExe' pkgs.passt "pasta"} --config-net --foreground --quiet --no-pidns -- "$0" "$@"
+          fi
+        ''}
         socket_path="$XDG_RUNTIME_DIR/opencode/opencode.sock"
         ${pkgs.coreutils}/bin/rm -f "$socket_path"
         ${pkgs.socat}/bin/socat UNIX-LISTEN:"$socket_path",mode=0600,fork TCP:127.0.0.1:${toString cfg.backend.port} &
@@ -244,6 +250,14 @@ in
         description = "Path loaded as the backend's systemd password credential; use passwordFile separately for local clients.";
       };
       privateSocket.enable = mkEnableOption "private Unix-socket backend transport";
+      privateSocket.networking = mkOption {
+        type = types.enum [
+          "pasta"
+          "isolated"
+        ];
+        default = "pasta";
+        description = "Outbound networking for the private-socket backend. \"pasta\" runs the backend under pasta(1) in a userspace-networked namespace: outbound connectivity (including DNS) through the host, no inbound forwarding, and the backend listener stays off the host network namespace. \"isolated\" runs it in a systemd PrivateNetwork namespace with no outbound connectivity at all.";
+      };
     };
     client.passwordFile = mkOption {
       type = types.nullOr types.str;
@@ -368,7 +382,8 @@ in
               RuntimeDirectoryMode = lib.optional cfg.backend.privateSocket.enable "0700";
               RestartSteps = 8;
               RestartMaxDelaySec = "5min";
-              PrivateNetwork = cfg.backend.privateSocket.enable;
+              PrivateNetwork =
+                cfg.backend.privateSocket.enable && cfg.backend.privateSocket.networking == "isolated";
               EnvironmentFile = lib.optional (cfg.backend.environmentFile != null) cfg.backend.environmentFile;
               LoadCredential = lib.optional (
                 cfg.backend.passwordCredential != null
