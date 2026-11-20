@@ -101,7 +101,7 @@ let
       builtins.head unixTunnel.ExecStart
     ) != null;
   privateBackendOk =
-    privateBackend.PrivateNetwork == false
+    !(privateBackend ? PrivateNetwork)
     && builtins.match ".*pasta.*--config-net.*" backendScript != null
     && builtins.match ".*UNIX-LISTEN.*mode=0600.*" backendScript != null
     && builtins.match ".*opencode/opencode.sock.*" backendScript != null

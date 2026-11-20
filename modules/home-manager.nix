@@ -372,7 +372,6 @@ in
               RuntimeDirectoryMode = lib.optional cfg.backend.privateSocket.enable "0700";
               RestartSteps = 8;
               RestartMaxDelaySec = "5min";
-              PrivateNetwork = false;
               EnvironmentFile = lib.optional (cfg.backend.environmentFile != null) cfg.backend.environmentFile;
               LoadCredential = lib.optional (
                 cfg.backend.passwordCredential != null
