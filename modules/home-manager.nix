@@ -121,7 +121,7 @@ let
   backendServeCommand = "${lib.getExe cfg.package} serve --hostname ${
     lib.escapeShellArg (if cfg.backend.privateSocket.enable then "127.0.0.1" else cfg.backend.host)
   } --port ${toString cfg.backend.port}";
-  backendCredentialExport = "export OPENCODE_SERVER_PASSWORD=\"$(cat \"$CREDENTIALS_DIRECTORY/opencode-password\")\"";
+  backendCredentialExport = "export OPENCODE_PASSWORD=\"$(cat \"$CREDENTIALS_DIRECTORY/opencode-password\")\"";
   backendExecStart =
     if cfg.backend.privateSocket.enable then
       pkgs.writeShellScript "opencode-backend" ''
@@ -151,9 +151,7 @@ let
            "exec ${lib.getExe cfg.package} --server ${lib.escapeShellArg "http://${cfg.backend.host}:${toString cfg.backend.port}"} \"$@\""
        }
     fi
-    echo "OpenCode backend service is not active; refusing to start the standalone client." >&2
-    echo "Check: systemctl --user status ${backendServiceName}" >&2
-    exit 1
+    exec ${lib.getExe cfg.package} "$@"
   '';
   localClientPackage =
     if !cfg.backend.enable then

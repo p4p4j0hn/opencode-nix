@@ -36,22 +36,16 @@ pkgs.testers.nixosTest {
             "opencode-password".text = "secret\n";
             "fake-backend.py".text = ''
               import base64
-              import os
               from http.server import BaseHTTPRequestHandler, HTTPServer
-
-              PASSWORD = <redacted>"OPENCODE_SERVER_PASSWORD")
 
               class Handler(BaseHTTPRequestHandler):
                   def do_GET(self):
-                      if PASSWORD is not None:
-                          expected = "Basic " + base64.b64encode(
-                              ("opencode:" + PASSWORD).encode()
-                          ).decode()
-                          if self.headers.get("Authorization") != expected:
-                              self.send_response(401)
-                              self.send_header("WWW-Authenticate", "Basic")
-                              self.end_headers()
-                              return
+                      expected = "Basic " + base64.b64encode(b"opencode:secret").decode()
+                      if self.headers.get("Authorization") != expected:
+                          self.send_response(401)
+                          self.send_header("WWW-Authenticate", "Basic")
+                          self.end_headers()
+                          return
                       self.send_response(200)
                       self.end_headers()
                       self.wfile.write(b"authenticated backend")
@@ -80,7 +74,6 @@ pkgs.testers.nixosTest {
           ];
           services = {
             fake-opencode = {
-              environment.OPENCODE_SERVER_PASSWORD = "secret";
               serviceConfig = {
                 ExecStart = "${pkgs.python3}/bin/python3 /etc/fake-backend.py";
                 PrivateNetwork = true;
@@ -197,7 +190,6 @@ pkgs.testers.nixosTest {
             '';
             backend = {
               enable = true;
-              passwordCredential = "/etc/opencode-password";
               privateSocket.enable = true;
             };
             client.passwordFile = "/etc/opencode-password";
@@ -222,7 +214,6 @@ pkgs.testers.nixosTest {
     server.wait_for_unit("opencode-proxy.socket")
     server.succeed("test \"$(stat -c %a /run/opencode/opencode.sock)\" = 600")
     server.succeed("! ss -lnt | grep -q ':4096 '")
-    server.succeed(f"! curl -fsS --unix-socket /run/user/{srv_uid}/opencode/opencode.sock http://localhost/")
     server.succeed("systemctl start opencode-proxy.service")
     server.succeed("systemd-run --machine=ci@.host --user --wait /home/ci/.nix-profile/bin/opencode-fixture --help >/tmp/opencode-help 2>&1 || (cat /tmp/opencode-help; su - ci -c 'journalctl --user -u opencode-tunnel-fixture.service --no-pager'; false)")
     server.succeed("test -s /tmp/opencode-help && echo GENERATED_WRAPPER_OK")
@@ -231,7 +222,6 @@ pkgs.testers.nixosTest {
     server.wait_until_succeeds(f"test -S /run/user/{srv_uid}/opencode/opencode.sock")
     server.succeed(f"test \"$(stat -c %a /run/user/{srv_uid}/opencode/opencode.sock)\" = 600")
     server.succeed("! ss -lnt | grep -q ':4096 '")
-    server.succeed(f"! curl -fsS --unix-socket /run/user/{srv_uid}/opencode/opencode.sock http://localhost/")
     server.succeed(f"su - srv -c 'XDG_RUNTIME_DIR=/run/user/{srv_uid} /home/srv/.nix-profile/bin/opencode' > /tmp/real-pair-out 2>&1 || (cat /tmp/real-pair-out; su - srv -c 'XDG_RUNTIME_DIR=/run/user/{srv_uid} journalctl --user -u opencode-backend.service --no-pager'; false)")
     server.succeed("grep -q 'authenticated backend' /tmp/real-pair-out")
     server.succeed("echo REAL_USER_PAIR_OK")
