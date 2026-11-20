@@ -104,6 +104,8 @@ let
     privateBackend.PrivateNetwork
     && builtins.match ".*UNIX-LISTEN.*mode=0600.*" backendScript != null
     && builtins.match ".*opencode/opencode.sock.*" backendScript != null
+    && builtins.match ".*OPENCODE_SERVER_PASSWORD.*" backendScript != null
+    && builtins.match ".*export OPENCODE_PASSWORD=.*" backendScript == null
     && !(server.systemd.user.services ? opencode-proxy);
   localRunner = builtins.readFile server.programs.opencode.package.passthru.opencodeLocalRunner;
   clientOk =
@@ -112,7 +114,8 @@ let
     && pkgs.lib.hasInfix "PrivateNetwork=true" localClient
     && pkgs.lib.hasInfix "netns-runner" localClient
     && pkgs.lib.hasInfix "OPENCODE_PASSWORD" localClient
-    && pkgs.lib.hasInfix "opencode-password" localClient;
+    && pkgs.lib.hasInfix "opencode-password" localClient
+    && pkgs.lib.hasInfix "refusing to start the standalone client" localClient;
   disabledOk = !(client.systemd.user.services ? opencode-backend);
   takeoverOk =
     builtins.length takeoverServer.systemd.user.services.opencode-backend.Service.ExecStartPre == 1
