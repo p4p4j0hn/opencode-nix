@@ -102,7 +102,7 @@ let
       ''}
       ${
         if connection.transport == "ssh-unix" then
-          "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet --pty -p PrivateNetwork=true ${
+          "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet --pty --working-directory \"\$PWD\" -p PrivateNetwork=true ${
             lib.optionalString (connection.passwordFile != null) "--setenv=OPENCODE_PASSWORD "
           }-- ${
             netnsRunner {
@@ -152,7 +152,7 @@ let
        ${passwordSetup cfg.client.passwordFile}
        ${
          if cfg.backend.privateSocket.enable then
-           "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet --pty -p PrivateNetwork=true ${
+           "exec ${pkgs.systemd}/bin/systemd-run --user --wait --collect --quiet --pty --working-directory \"\$PWD\" -p PrivateNetwork=true ${
              lib.optionalString (cfg.client.passwordFile != null) "--setenv=OPENCODE_PASSWORD "
            }-- ${localRunner} \"$@\""
          else
