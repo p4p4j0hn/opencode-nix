@@ -111,6 +111,7 @@ let
     pkgs.lib.hasInfix "--server" localRunner
     && pkgs.lib.hasInfix "http://127.0.0.1:4096" localRunner
     && pkgs.lib.hasInfix "PrivateNetwork=true" localClient
+    && pkgs.lib.hasInfix "--working-directory" localClient
     && pkgs.lib.hasInfix "netns-runner" localClient
     && pkgs.lib.hasInfix "OPENCODE_PASSWORD" localClient
     && pkgs.lib.hasInfix "--setenv=OPENCODE_PASSWORD" localClient
