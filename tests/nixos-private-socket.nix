@@ -12,6 +12,8 @@ pkgs.testers.nixosTest {
       {
         imports = [ home-manager.nixosModules.home-manager ];
         networking.firewall.enable = false;
+        networking.defaultGateway = "192.168.1.254";
+        boot.kernelModules = [ "tun" ];
         environment = {
           systemPackages = [
             pkgs.curl
@@ -71,6 +73,17 @@ pkgs.testers.nixosTest {
                       pass
               HTTPServer(("127.0.0.1", 4097), Handler).serve_forever()
             '';
+            "outbound-target.py".text = ''
+              from http.server import BaseHTTPRequestHandler, HTTPServer
+              class Handler(BaseHTTPRequestHandler):
+                  def do_GET(self):
+                      self.send_response(200)
+                      self.end_headers()
+                      self.wfile.write(b"outbound-ok")
+                  def log_message(self, *_):
+                      pass
+              HTTPServer(("127.0.0.1", 8917), Handler).serve_forever()
+            '';
           };
         };
         systemd = {
@@ -88,6 +101,10 @@ pkgs.testers.nixosTest {
             };
             legacy-opencode = {
               serviceConfig.ExecStart = "${pkgs.python3}/bin/python3 /etc/legacy-backend.py";
+            };
+            outbound-target = {
+              wantedBy = [ "multi-user.target" ];
+              serviceConfig.ExecStart = "${pkgs.python3}/bin/python3 /etc/outbound-target.py";
             };
             client-compat-test = {
               requires = [ "opencode-proxy.service" ];
@@ -234,6 +251,9 @@ pkgs.testers.nixosTest {
     server.succeed(f"su - srv -c 'XDG_RUNTIME_DIR=/run/user/{srv_uid} /home/srv/.nix-profile/bin/opencode' > /tmp/real-pair-out 2>&1 || (cat /tmp/real-pair-out; su - srv -c 'XDG_RUNTIME_DIR=/run/user/{srv_uid} journalctl --user -u opencode-backend.service --no-pager'; false)")
     server.succeed("grep -q 'authenticated backend' /tmp/real-pair-out")
     server.succeed("echo REAL_USER_PAIR_OK")
+    server.wait_for_unit("outbound-target.service")
+    server.succeed("nsenter -t $(pgrep -u srv -f fake-backend.py) -n curl -fsS http://192.168.1.2:8917/ | grep -q 'outbound-ok'")
+    server.succeed("echo BACKEND_OUTBOUND_OK")
     server.succeed("systemctl start client-compat-test.service")
     server.succeed("echo CLIENT_PRIVATE_PROXY_OK")
     server.succeed("systemctl start legacy-opencode.service")

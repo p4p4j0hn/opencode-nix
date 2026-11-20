@@ -70,9 +70,14 @@ namespace, enable the opt-in private backend:
 backend.privateSocket.enable = true;
 ```
 
-The backend then runs in a private systemd network namespace and is exposed
+The backend then runs in its own network namespace and is exposed
 through the user-owned, mode-`0600` socket
 `$XDG_RUNTIME_DIR/opencode/opencode.sock`. The socket directory is mode `0700`.
+
+The namespace is created by pasta(1), which forwards outbound traffic
+(including DNS) through the host in userspace; nothing is forwarded inbound,
+so the backend has internet access while its listener stays off the host
+namespace.
 
 Use the Unix-socket SSH transport from a client:
 

@@ -92,7 +92,7 @@ let
     service.Restart == "always"
     && service.RestartSteps == 8
     && service.RestartMaxDelaySec == "5min"
-    && builtins.match ".*serve.*" (builtins.readFile (builtins.head service.ExecStart)) != null
+    && builtins.match ".*pasta.*" (builtins.readFile (builtins.head service.ExecStart)) != null
     && service.LoadCredential == [ "opencode-password:/run/user/1000/opencode-password" ];
   tunnelOk =
     builtins.match ".*-L 127.0.0.1:14096:127.0.0.1:4096.*" (builtins.head tunnel.ExecStart) != null;
@@ -101,10 +101,9 @@ let
       builtins.head unixTunnel.ExecStart
     ) != null;
   privateBackendOk =
-    privateBackend.PrivateNetwork
-    && builtins.match ".*UNIX-LISTEN.*mode=0600.*" backendScript != null
-    && builtins.match ".*opencode/opencode.sock.*" backendScript != null
-    && builtins.match ".*OPENCODE_SERVER_PASSWORD.*" backendScript != null
+    !(privateBackend ? PrivateNetwork)
+    && builtins.match ".*pasta.*--config-net.*" backendScript != null
+    && builtins.match ".*opencode-backend-private.*" backendScript != null
     && builtins.match ".*export OPENCODE_PASSWORD=.*" backendScript == null
     && !(server.systemd.user.services ? opencode-proxy);
   localRunner = builtins.readFile server.programs.opencode.package.passthru.opencodeLocalRunner;
