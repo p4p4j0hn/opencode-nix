@@ -10,7 +10,7 @@
   git-hooks.hooks = {
     nix-format = {
       enable = true;
-      entry = "nix fmt -- --ci .";
+      entry = "nix fmt .";
       language = "system";
       pass_filenames = false;
     };
