@@ -1,4 +1,6 @@
 result
+.devenv/
+.pre-commit-config.yaml
 .direnv/
 __pycache__/
 *.py[cod]
