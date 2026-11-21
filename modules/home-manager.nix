@@ -124,9 +124,42 @@ let
     lib.escapeShellArg (if cfg.backend.privateSocket.enable then "127.0.0.1" else cfg.backend.host)
   } --port ${toString cfg.backend.port}";
   backendCredentialExport = "export OPENCODE_SERVER_PASSWORD=\"$(cat \"$CREDENTIALS_DIRECTORY/opencode-password\")\"";
+  backendApiKeyExports = lib.concatStringsSep "\n" (
+    lib.mapAttrsToList (
+      name: _: "export ${name}=\"$(cat \"$CREDENTIALS_DIRECTORY/${lib.toLower name}\")\""
+    ) cfg.backend.apiKeyCredentials
+  );
+  backendSshKeys = lib.imap0 (index: path: {
+    name = "opencode-ssh-key-${toString (index + 1)}";
+    inherit path;
+  }) cfg.backend.sshKeyCredentials;
+  backendSshWrapper = pkgs.writeShellScriptBin "ssh" ''
+    exec ${pkgs.openssh}/bin/ssh -F "$OPENCODE_SSH_CONFIG" "$@"
+  '';
+  backendSshConfigSetup = ''
+    ssh_config="$XDG_RUNTIME_DIR/opencode/ssh_config"
+    cat > "$ssh_config" <<'EOF'
+    Include ~/.ssh/config
+    EOF
+    ${pkgs.coreutils}/bin/chmod 0600 "$ssh_config"
+    export OPENCODE_SSH_CONFIG="$ssh_config"
+    export PATH="${backendSshWrapper}/bin:$PATH"
+  '';
+  backendSshAgentSetup = lib.optionalString (backendSshKeys != [ ]) ''
+    export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/opencode/ssh-agent.sock"
+    ${pkgs.coreutils}/bin/rm -f "$SSH_AUTH_SOCK"
+    eval "$(${pkgs.openssh}/bin/ssh-agent -a "$SSH_AUTH_SOCK")"
+    trap '${pkgs.openssh}/bin/ssh-agent -k >/dev/null 2>&1 || true' EXIT
+    ${lib.concatMapStringsSep "\n" (
+      key: "${pkgs.openssh}/bin/ssh-add \"$CREDENTIALS_DIRECTORY/${key.name}\""
+    ) backendSshKeys}
+  '';
   privateBackendScript = pkgs.writeShellScript "opencode-backend-private" ''
     set -euo pipefail
+    ${backendSshConfigSetup}
     ${lib.optionalString (cfg.backend.passwordCredential != null) backendCredentialExport}
+    ${backendApiKeyExports}
+    ${backendSshAgentSetup}
     socket_path="$XDG_RUNTIME_DIR/opencode/opencode.sock"
     ${pkgs.coreutils}/bin/rm -f "$socket_path"
     ${pkgs.socat}/bin/socat UNIX-LISTEN:"$socket_path",mode=0600,fork TCP:127.0.0.1:${toString cfg.backend.port} &
@@ -138,12 +171,18 @@ let
         set -euo pipefail
         exec ${lib.getExe' pkgs.passt "pasta"} --config-net --foreground --quiet --tcp-ports none --udp-ports none --map-host-loopback 192.168.1.2 -- ${privateBackendScript} "$@"
       ''
-    else if cfg.backend.passwordCredential == null then
+    else if
+      cfg.backend.passwordCredential == null
+      && cfg.backend.sshKeyCredentials == [ ]
+      && cfg.backend.apiKeyCredentials == { }
+    then
       backendServeCommand
     else
       pkgs.writeShellScript "opencode-backend" ''
         set -euo pipefail
+        ${backendSshAgentSetup}
         ${backendCredentialExport}
+        ${backendApiKeyExports}
         exec ${backendServeCommand}
       '';
   localClientScript = ''
@@ -237,15 +276,30 @@ in
           default = 5;
         };
       };
-      environmentFile = mkOption {
-        type = types.nullOr types.str;
-        default = null;
-        description = "Runtime path containing OPENCODE_PASSWORD and other secrets; never use a Nix store path.";
-      };
       passwordCredential = mkOption {
         type = types.nullOr types.path;
         default = null;
         description = "Path loaded as the backend's systemd password credential; use passwordFile separately for local clients.";
+      };
+      sshKeyCredentials = mkOption {
+        type = types.listOf types.path;
+        default = [ ];
+        description = "Additional unencrypted SSH private keys loaded as runtime credentials for SSH access and git SSH-format signing.";
+      };
+      apiKeyCredentials = mkOption {
+        type = types.attrsOf types.path;
+        default = { };
+        description = "Mapping of backend API environment variable names to runtime paths containing their keys.";
+      };
+      environment = mkOption {
+        type = types.attrsOf types.str;
+        default = { };
+        description = "Non-secret environment variables written to the generated systemd unit; values are world-readable.";
+      };
+      environmentFiles = mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        description = "Runtime environment files passed to the backend systemd unit.";
       };
       privateSocket.enable = mkEnableOption "private Unix-socket backend transport";
     };
@@ -342,6 +396,12 @@ in
           builtins.length (lib.unique ports) == builtins.length ports;
         message = "OpenCode SSH connections must use distinct localPort values.";
       }
+      {
+        assertion = lib.all (name: builtins.match "[A-Za-z_][A-Za-z0-9_]*" name != null) (
+          lib.attrNames cfg.backend.apiKeyCredentials
+        );
+        message = "Backend API key credential names must be valid environment variable names.";
+      }
     ];
     programs.opencode = {
       enable = true;
@@ -365,17 +425,28 @@ in
             Service = {
               ExecStart = backendExecStart;
               ExecStartPre = lib.optional cfg.backend.takeover.enable "${pkgs.python3}/bin/python3 ${pkgs.writeText "opencode-takeover.py" (builtins.readFile ../scripts/takeover-port.py)} --port ${toString cfg.backend.port} --grace-seconds ${toString cfg.backend.takeover.graceSeconds}";
-              Environment = lib.optional cfg.backend.takeover.enable "OPENCODE_LSOF=${pkgs.lsof}/bin/lsof";
+              Environment =
+                (lib.mapAttrsToList (name: value: "${name}=${value}") cfg.backend.environment)
+                ++ lib.optional cfg.backend.takeover.enable "OPENCODE_LSOF=${pkgs.lsof}/bin/lsof";
               Restart = "always";
               RestartSec = "2s";
-              RuntimeDirectory = lib.optional cfg.backend.privateSocket.enable "opencode";
-              RuntimeDirectoryMode = lib.optional cfg.backend.privateSocket.enable "0700";
+              RuntimeDirectory = lib.optional (
+                cfg.backend.privateSocket.enable || backendSshKeys != [ ]
+              ) "opencode";
+              RuntimeDirectoryMode = lib.optional (
+                cfg.backend.privateSocket.enable || backendSshKeys != [ ]
+              ) "0700";
               RestartSteps = 8;
               RestartMaxDelaySec = "5min";
-              EnvironmentFile = lib.optional (cfg.backend.environmentFile != null) cfg.backend.environmentFile;
-              LoadCredential = lib.optional (
-                cfg.backend.passwordCredential != null
-              ) "opencode-password:${cfg.backend.passwordCredential}";
+              EnvironmentFile = cfg.backend.environmentFiles;
+              LoadCredential =
+                lib.optional (
+                  cfg.backend.passwordCredential != null
+                ) "opencode-password:${cfg.backend.passwordCredential}"
+                ++ lib.imap0 (
+                  index: path: "opencode-ssh-key-${toString (index + 1)}:${path}"
+                ) cfg.backend.sshKeyCredentials
+                ++ lib.mapAttrsToList (name: path: "${lib.toLower name}:${path}") cfg.backend.apiKeyCredentials;
             };
             Install.WantedBy = [ "default.target" ];
           };
