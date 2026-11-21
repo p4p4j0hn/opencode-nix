@@ -30,8 +30,11 @@ OpenCode separates its TUI client from a persistent remote backend.
 `sshKeyCredentials` entries must point to unencrypted private SSH keys because the
 unattended backend cannot answer a passphrase prompt. The backend starts a
 dedicated `ssh-agent` and exposes it to OpenCode for SSH remotes and git
-SSH-format signing. The key is provided with systemd `LoadCredential` and is
-not placed in the Nix store.
+SSH-format signing. In private-socket mode, SSH is launched with a
+runtime-owned configuration that includes the user's `~/.ssh/config` but
+avoids the host's system SSH configuration, whose Nix-store ownership may be
+unmapped inside pasta. The key is provided with systemd `LoadCredential` and
+is not placed in the Nix store.
 
 `apiKeyCredentials` maps environment variable names to runtime files. Each
 file is loaded with `LoadCredential` and exported only to the backend process,

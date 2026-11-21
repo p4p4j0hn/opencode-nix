@@ -134,6 +134,18 @@ let
       name = "opencode-ssh-key-${toString (index + 1)}";
       inherit path;
     }) cfg.backend.sshKeyCredentials;
+  backendSshWrapper = pkgs.writeShellScriptBin "ssh" ''
+    exec ${pkgs.openssh}/bin/ssh -F "$OPENCODE_SSH_CONFIG" "$@"
+  '';
+  backendSshConfigSetup = ''
+    ssh_config="$XDG_RUNTIME_DIR/opencode/ssh_config"
+    cat > "$ssh_config" <<'EOF'
+    Include ~/.ssh/config
+    EOF
+    ${pkgs.coreutils}/bin/chmod 0600 "$ssh_config"
+    export OPENCODE_SSH_CONFIG="$ssh_config"
+    export PATH="${backendSshWrapper}/bin:$PATH"
+  '';
   backendSshAgentSetup = lib.optionalString (backendSshKeys != [ ]) ''
     export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/opencode/ssh-agent.sock"
     ${pkgs.coreutils}/bin/rm -f "$SSH_AUTH_SOCK"
@@ -143,6 +155,7 @@ let
   '';
   privateBackendScript = pkgs.writeShellScript "opencode-backend-private" ''
     set -euo pipefail
+    ${backendSshConfigSetup}
     ${lib.optionalString (cfg.backend.passwordCredential != null) backendCredentialExport}
     ${backendApiKeyExports}
     ${backendSshAgentSetup}

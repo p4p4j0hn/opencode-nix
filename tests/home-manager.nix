@@ -130,6 +130,9 @@ let
     !(privateBackend ? PrivateNetwork)
      && builtins.match ".*pasta.*--config-net.*" backendScript != null
      && builtins.match ".*opencode-backend-private.*" backendScript != null
+     && pkgs.lib.hasInfix "Include ~/.ssh/config" privateScript
+     && pkgs.lib.hasInfix "OPENCODE_SSH_CONFIG" privateScript
+     && pkgs.lib.hasInfix "ssh_config" privateScript
      && pkgs.lib.hasInfix "ssh-agent" privateScript
      && pkgs.lib.hasInfix "ssh-agent.sock" privateScript
      && pkgs.lib.hasInfix "ssh-add" privateScript
