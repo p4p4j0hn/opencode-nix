@@ -14,7 +14,6 @@
       host = "127.0.0.1";
       port = 4096;
       # Optional: point at a runtime secret file from sops-nix.
-      # environmentFile = "/run/user/1000/secrets/opencode";
       # Optional: runtime mode-600 file used by the local `opencode` client.
       # passwordFile = "/home/user/.config/opencode/server-password";
     };

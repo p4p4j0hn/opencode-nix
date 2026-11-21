@@ -13,11 +13,34 @@ OpenCode separates its TUI client from a persistent remote backend.
       host = "127.0.0.1";
       port = 4096;
       # Point to a runtime secret (sops-nix works):
-      # environmentFile = "/run/user/1000/secrets/opencode";
+      # Runtime credentials, never copied into the Nix store:
+      # sshKeyCredentials = [
+      #   "/run/user/1000/secrets/deploy-key"
+      #   "/run/user/1000/secrets/signing-key"
+      # ];
+      # apiKeyCredentials.ANTHROPIC_API_KEY = "/run/user/1000/secrets/anthropic";
+      # environmentFiles = [ "/run/user/1000/secrets/opencode-environment" ];
+      # Non-secret values only; these are written to the unit:
+      # environment.OPENCODE_LOG_LEVEL = "debug";
     };
   };
 }
 ```
+
+`sshKeyCredentials` entries must point to unencrypted private SSH keys because the
+unattended backend cannot answer a passphrase prompt. The backend starts a
+dedicated `ssh-agent` and exposes it to OpenCode for SSH remotes and git
+SSH-format signing. The key is provided with systemd `LoadCredential` and is
+not placed in the Nix store.
+
+`apiKeyCredentials` maps environment variable names to runtime files. Each
+file is loaded with `LoadCredential` and exported only to the backend process,
+for example `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. Credential files should
+be protected and must not be committed. In contrast, `backend.environment`
+values are embedded in the generated systemd unit and are world-readable;
+never put secrets there.
+
+`environmentFiles` supplies runtime environment files to systemd.
 
 Enable lingering for the backend user if you want systemd user services
 to survive logouts (`loginctl enable-linger USER`). The remote host

@@ -23,6 +23,12 @@ let
               enable = true;
               port = 4096;
               passwordCredential = "/run/user/1000/opencode-password";
+              sshKeyCredentials = [
+                "/run/user/1000/opencode-ssh-key"
+                "/run/user/1000/opencode-signing-key"
+              ];
+              apiKeyCredentials.ANTHROPIC_API_KEY = "/run/user/1000/anthropic-key";
+              environment.OPENCODE_LOG_LEVEL = "debug";
               privateSocket.enable = true;
             };
             tui.theme = "system";
@@ -60,6 +66,15 @@ let
       ];
     }).config;
   server = makeHome { };
+  plainServer = makeHome {
+    backend = {
+      enable = true;
+      passwordCredential = null;
+      sshKeyCredentials = [ ];
+      apiKeyCredentials = { };
+      privateSocket.enable = false;
+    };
+  };
   client = makeHome { backend.enable = false; };
   takeoverServer = makeHome {
     backend = {
@@ -85,7 +100,12 @@ let
   tunnel = server.systemd.user.services.opencode-tunnel-lab.Service;
   unixTunnel = server.systemd.user.services.opencode-tunnel-unix.Service;
   privateBackend = server.systemd.user.services.opencode-backend.Service;
+  plainBackendScript = builtins.head plainServer.systemd.user.services.opencode-backend.Service.ExecStart;
   backendScript = builtins.readFile (builtins.head privateBackend.ExecStart);
+  privateScriptPath = builtins.head (
+    builtins.match ".*-- ([^ ]*opencode-backend-private) .*" backendScript
+  );
+  privateScript = builtins.readFile privateScriptPath;
   tmpfilesOk = server.systemd.user.tmpfiles.rules == [ "d %t/opencode 0700 - - -" ];
   localClient = server.programs.opencode.package.passthru.opencodeClientScript;
   serviceOk =
@@ -93,7 +113,13 @@ let
     && service.RestartSteps == 8
     && service.RestartMaxDelaySec == "5min"
     && builtins.match ".*pasta.*" (builtins.readFile (builtins.head service.ExecStart)) != null
-    && service.LoadCredential == [ "opencode-password:/run/user/1000/opencode-password" ];
+     && service.LoadCredential == [
+       "opencode-password:/run/user/1000/opencode-password"
+       "opencode-ssh-key-1:/run/user/1000/opencode-ssh-key"
+       "opencode-ssh-key-2:/run/user/1000/opencode-signing-key"
+       "anthropic_api_key:/run/user/1000/anthropic-key"
+     ]
+     && builtins.elem "OPENCODE_LOG_LEVEL=debug" service.Environment;
   tunnelOk =
     builtins.match ".*-L 127.0.0.1:14096:127.0.0.1:4096.*" (builtins.head tunnel.ExecStart) != null;
   unixTransportOk =
@@ -102,10 +128,20 @@ let
     ) != null;
   privateBackendOk =
     !(privateBackend ? PrivateNetwork)
-    && builtins.match ".*pasta.*--config-net.*" backendScript != null
-    && builtins.match ".*opencode-backend-private.*" backendScript != null
+     && builtins.match ".*pasta.*--config-net.*" backendScript != null
+     && builtins.match ".*opencode-backend-private.*" backendScript != null
+     && pkgs.lib.hasInfix "ssh-agent" privateScript
+     && pkgs.lib.hasInfix "ssh-agent.sock" privateScript
+     && pkgs.lib.hasInfix "ssh-add" privateScript
+     && pkgs.lib.hasInfix "opencode-ssh-key-1" privateScript
+     && pkgs.lib.hasInfix "opencode-ssh-key-2" privateScript
+     && pkgs.lib.hasInfix "export ANTHROPIC_API_KEY" privateScript
+     && pkgs.lib.hasInfix "anthropic_api_key" privateScript
     && builtins.match ".*export OPENCODE_PASSWORD=.*" backendScript == null
-    && !(server.systemd.user.services ? opencode-proxy);
+     && !(server.systemd.user.services ? opencode-proxy);
+  plainBackendOk =
+    !(pkgs.lib.hasInfix "ssh-agent" plainBackendScript)
+    && !(pkgs.lib.hasInfix "ANTHROPIC_API_KEY" plainBackendScript);
   localRunner = builtins.readFile server.programs.opencode.package.passthru.opencodeLocalRunner;
   clientOk =
     pkgs.lib.hasInfix "--server" localRunner
@@ -154,6 +190,7 @@ assert serviceOk;
 assert tunnelOk;
 assert unixTransportOk;
 assert privateBackendOk;
+assert plainBackendOk;
 assert tmpfilesOk;
 assert clientOk;
 assert disabledOk;
