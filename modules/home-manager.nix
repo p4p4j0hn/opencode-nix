@@ -126,14 +126,13 @@ let
   backendCredentialExport = "export OPENCODE_SERVER_PASSWORD=\"$(cat \"$CREDENTIALS_DIRECTORY/opencode-password\")\"";
   backendApiKeyExports = lib.concatStringsSep "\n" (
     lib.mapAttrsToList (
-      name: _:
-      "export ${name}=\"$(cat \"$CREDENTIALS_DIRECTORY/${lib.toLower name}\")\""
+      name: _: "export ${name}=\"$(cat \"$CREDENTIALS_DIRECTORY/${lib.toLower name}\")\""
     ) cfg.backend.apiKeyCredentials
   );
   backendSshKeys = lib.imap0 (index: path: {
-      name = "opencode-ssh-key-${toString (index + 1)}";
-      inherit path;
-    }) cfg.backend.sshKeyCredentials;
+    name = "opencode-ssh-key-${toString (index + 1)}";
+    inherit path;
+  }) cfg.backend.sshKeyCredentials;
   backendSshWrapper = pkgs.writeShellScriptBin "ssh" ''
     exec ${pkgs.openssh}/bin/ssh -F "$OPENCODE_SSH_CONFIG" "$@"
   '';
@@ -151,7 +150,9 @@ let
     ${pkgs.coreutils}/bin/rm -f "$SSH_AUTH_SOCK"
     eval "$(${pkgs.openssh}/bin/ssh-agent -a "$SSH_AUTH_SOCK")"
     trap '${pkgs.openssh}/bin/ssh-agent -k >/dev/null 2>&1 || true' EXIT
-    ${lib.concatMapStringsSep "\n" (key: "${pkgs.openssh}/bin/ssh-add \"$CREDENTIALS_DIRECTORY/${key.name}\"") backendSshKeys}
+    ${lib.concatMapStringsSep "\n" (
+      key: "${pkgs.openssh}/bin/ssh-add \"$CREDENTIALS_DIRECTORY/${key.name}\""
+    ) backendSshKeys}
   '';
   privateBackendScript = pkgs.writeShellScript "opencode-backend-private" ''
     set -euo pipefail
@@ -396,9 +397,9 @@ in
         message = "OpenCode SSH connections must use distinct localPort values.";
       }
       {
-        assertion = lib.all (
-          name: builtins.match "[A-Za-z_][A-Za-z0-9_]*" name != null
-        ) (lib.attrNames cfg.backend.apiKeyCredentials);
+        assertion = lib.all (name: builtins.match "[A-Za-z_][A-Za-z0-9_]*" name != null) (
+          lib.attrNames cfg.backend.apiKeyCredentials
+        );
         message = "Backend API key credential names must be valid environment variable names.";
       }
     ];
@@ -438,15 +439,14 @@ in
               RestartSteps = 8;
               RestartMaxDelaySec = "5min";
               EnvironmentFile = cfg.backend.environmentFiles;
-              LoadCredential = lib.optional (
-                cfg.backend.passwordCredential != null
-              ) "opencode-password:${cfg.backend.passwordCredential}"
+              LoadCredential =
+                lib.optional (
+                  cfg.backend.passwordCredential != null
+                ) "opencode-password:${cfg.backend.passwordCredential}"
                 ++ lib.imap0 (
                   index: path: "opencode-ssh-key-${toString (index + 1)}:${path}"
                 ) cfg.backend.sshKeyCredentials
-                ++ lib.mapAttrsToList (
-                  name: path: "${lib.toLower name}:${path}"
-                ) cfg.backend.apiKeyCredentials;
+                ++ lib.mapAttrsToList (name: path: "${lib.toLower name}:${path}") cfg.backend.apiKeyCredentials;
             };
             Install.WantedBy = [ "default.target" ];
           };

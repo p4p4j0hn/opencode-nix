@@ -113,13 +113,14 @@ let
     && service.RestartSteps == 8
     && service.RestartMaxDelaySec == "5min"
     && builtins.match ".*pasta.*" (builtins.readFile (builtins.head service.ExecStart)) != null
-     && service.LoadCredential == [
-       "opencode-password:/run/user/1000/opencode-password"
-       "opencode-ssh-key-1:/run/user/1000/opencode-ssh-key"
-       "opencode-ssh-key-2:/run/user/1000/opencode-signing-key"
-       "anthropic_api_key:/run/user/1000/anthropic-key"
-     ]
-     && builtins.elem "OPENCODE_LOG_LEVEL=debug" service.Environment;
+    &&
+      service.LoadCredential == [
+        "opencode-password:/run/user/1000/opencode-password"
+        "opencode-ssh-key-1:/run/user/1000/opencode-ssh-key"
+        "opencode-ssh-key-2:/run/user/1000/opencode-signing-key"
+        "anthropic_api_key:/run/user/1000/anthropic-key"
+      ]
+    && builtins.elem "OPENCODE_LOG_LEVEL=debug" service.Environment;
   tunnelOk =
     builtins.match ".*-L 127.0.0.1:14096:127.0.0.1:4096.*" (builtins.head tunnel.ExecStart) != null;
   unixTransportOk =
@@ -128,20 +129,20 @@ let
     ) != null;
   privateBackendOk =
     !(privateBackend ? PrivateNetwork)
-     && builtins.match ".*pasta.*--config-net.*" backendScript != null
-     && builtins.match ".*opencode-backend-private.*" backendScript != null
-     && pkgs.lib.hasInfix "Include ~/.ssh/config" privateScript
-     && pkgs.lib.hasInfix "OPENCODE_SSH_CONFIG" privateScript
-     && pkgs.lib.hasInfix "ssh_config" privateScript
-     && pkgs.lib.hasInfix "ssh-agent" privateScript
-     && pkgs.lib.hasInfix "ssh-agent.sock" privateScript
-     && pkgs.lib.hasInfix "ssh-add" privateScript
-     && pkgs.lib.hasInfix "opencode-ssh-key-1" privateScript
-     && pkgs.lib.hasInfix "opencode-ssh-key-2" privateScript
-     && pkgs.lib.hasInfix "export ANTHROPIC_API_KEY" privateScript
-     && pkgs.lib.hasInfix "anthropic_api_key" privateScript
+    && builtins.match ".*pasta.*--config-net.*" backendScript != null
+    && builtins.match ".*opencode-backend-private.*" backendScript != null
+    && pkgs.lib.hasInfix "Include ~/.ssh/config" privateScript
+    && pkgs.lib.hasInfix "OPENCODE_SSH_CONFIG" privateScript
+    && pkgs.lib.hasInfix "ssh_config" privateScript
+    && pkgs.lib.hasInfix "ssh-agent" privateScript
+    && pkgs.lib.hasInfix "ssh-agent.sock" privateScript
+    && pkgs.lib.hasInfix "ssh-add" privateScript
+    && pkgs.lib.hasInfix "opencode-ssh-key-1" privateScript
+    && pkgs.lib.hasInfix "opencode-ssh-key-2" privateScript
+    && pkgs.lib.hasInfix "export ANTHROPIC_API_KEY" privateScript
+    && pkgs.lib.hasInfix "anthropic_api_key" privateScript
     && builtins.match ".*export OPENCODE_PASSWORD=.*" backendScript == null
-     && !(server.systemd.user.services ? opencode-proxy);
+    && !(server.systemd.user.services ? opencode-proxy);
   plainBackendOk =
     !(pkgs.lib.hasInfix "ssh-agent" plainBackendScript)
     && !(pkgs.lib.hasInfix "ANTHROPIC_API_KEY" plainBackendScript);
