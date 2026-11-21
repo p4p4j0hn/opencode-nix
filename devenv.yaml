@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://devenv.sh/devenv.schema.json
+version: "2"
+inputs:
+  opencode-nix:
+    url: path:.
+  nixpkgs:
+    follows: opencode-nix/nixpkgs
+  home-manager:
+    follows: opencode-nix/home-manager
