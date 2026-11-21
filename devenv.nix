@@ -7,13 +7,13 @@
     pkgs.statix
   ];
 
-  treefmt = {
-    enable = true;
-    config.programs.nixfmt.enable = true;
-  };
-
   git-hooks.hooks = {
-    treefmt.enable = true;
+    nix-format = {
+      enable = true;
+      entry = "nix fmt -- --ci .";
+      language = "system";
+      pass_filenames = false;
+    };
     black.enable = true;
     statix.enable = true;
   };
