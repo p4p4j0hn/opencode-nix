@@ -38,6 +38,8 @@ nix build .#vmTests.x86_64-linux.nixos-private-socket
 
 ## Change guidance
 
+- Use test-driven development: add a failing test or evaluation assertion
+  before implementing behavior, then make it pass and refactor.
 - Keep secrets and runtime credentials out of the Nix store.
 - Preserve backward compatibility unless a change explicitly requires a
   breaking option change.
@@ -49,6 +51,8 @@ nix build .#vmTests.x86_64-linux.nixos-private-socket
 
 ## Commit and pull request expectations
 
-Use focused commits with an imperative subject. Pull requests should explain
-the behavior change, mention affected options, and include the verification
-commands that were run.
+Commit early and often using focused snapshot commits with imperative
+subjects. Intermediate commits do not need to be polished; pull requests may
+be squash-merged at merge time. Pull requests should explain the behavior
+change, mention affected options, and include the verification commands that
+were run.

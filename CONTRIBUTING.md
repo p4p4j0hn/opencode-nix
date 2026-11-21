@@ -42,9 +42,13 @@ devenv test
 ## Making changes
 
 1. Create a feature branch from `main`.
-2. Keep changes focused and add tests for behavior changes.
-3. Run the relevant checks locally.
-4. Use a clear, imperative commit message.
+2. Follow test-driven development: write a failing test or evaluation
+   assertion first, implement the behavior, then refactor while keeping the
+   tests passing.
+3. Keep changes focused and run the relevant checks locally.
+4. Commit early and often using focused snapshot commits with clear,
+   imperative messages. These commits may be squash-merged when the pull
+   request lands.
 5. Open a pull request against `main`.
 
 For Home Manager or backend changes, update the evaluation assertions in
