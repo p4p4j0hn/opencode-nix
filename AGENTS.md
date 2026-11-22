@@ -8,15 +8,23 @@ integration for local and remote backends. The main implementation is in
 
 ## Development environments
 
-Both development shell entry points are supported:
+Use `devenv shell` for normal development. It is the canonical environment
+for contributors and agents because it installs and refreshes the repository's
+Git hooks.
 
 ```bash
-nix develop
 devenv shell
 ```
 
-Use `devenv shell` when working with the Git hooks. It generates the local
-`.pre-commit-config.yaml`, which is intentionally ignored.
+`nix develop` remains supported for compatibility and lightweight access to
+the project's packages:
+
+```bash
+nix develop
+```
+
+The devenv environment generates the local `.pre-commit-config.yaml`, which is
+intentionally ignored.
 
 ## Verification
 

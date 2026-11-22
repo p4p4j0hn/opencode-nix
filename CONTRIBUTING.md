@@ -2,16 +2,18 @@
 
 ## Getting started
 
-Clone the repository and enter either supported development environment:
-
-```bash
-nix develop
-```
-
-or:
+Clone the repository and enter the canonical development environment:
 
 ```bash
 devenv shell
+```
+
+This installs or refreshes the Git hooks. Contributors and agents should do
+normal work inside this environment. `nix develop` remains available for
+compatibility:
+
+```bash
+nix develop
 ```
 
 The devenv environment installs the repository's pre-commit hooks. The
