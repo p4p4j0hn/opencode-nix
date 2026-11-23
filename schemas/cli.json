@@ -541,6 +541,14 @@
               "anyOf": [{ "$ref": "#/$defs/TuiKeybind.BindingValue" }, { "type": "null" }],
               "description": "List model variants"
             },
+            "speed.cycle": {
+              "anyOf": [{ "$ref": "#/$defs/TuiKeybind.BindingValue" }, { "type": "null" }],
+              "description": "Cycle model speeds"
+            },
+            "speed.list": {
+              "anyOf": [{ "$ref": "#/$defs/TuiKeybind.BindingValue" }, { "type": "null" }],
+              "description": "List model speeds"
+            },
             "session.page.up": {
               "anyOf": [{ "$ref": "#/$defs/TuiKeybind.BindingValue" }, { "type": "null" }],
               "description": "Scroll messages up by one page"
@@ -832,6 +840,18 @@
             "composer.shell.kill": {
               "anyOf": [{ "$ref": "#/$defs/TuiKeybind.BindingValue" }, { "type": "null" }],
               "description": "Kill shell command"
+            },
+            "composer.script.up": {
+              "anyOf": [{ "$ref": "#/$defs/TuiKeybind.BindingValue" }, { "type": "null" }],
+              "description": "Previous script"
+            },
+            "composer.script.down": {
+              "anyOf": [{ "$ref": "#/$defs/TuiKeybind.BindingValue" }, { "type": "null" }],
+              "description": "Next script"
+            },
+            "composer.script.cancel": {
+              "anyOf": [{ "$ref": "#/$defs/TuiKeybind.BindingValue" }, { "type": "null" }],
+              "description": "Cancel script"
             },
             "composer.terminal.up": {
               "anyOf": [{ "$ref": "#/$defs/TuiKeybind.BindingValue" }, { "type": "null" }],
