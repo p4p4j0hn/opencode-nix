@@ -1,13 +1,13 @@
 {
-  "version": "2.3.2",
+  "version": "2.4.1",
   "hashes": {
-    "x86_64-linux": "sha256-hFRo41qlorV0lFoLlmdeZMYE9Sec7ZqnJFBo2MC29rs=",
-    "aarch64-linux": "sha256-kak3Ep79ro64wMUBiuUz+fNRF/Jv/ZpNH3pfnaHmkwY=",
-    "x86_64-darwin": "sha256-VyTmxWAmsCs++2B0fU/3Y+UPEGaXC3i7rrMoGFNqdHk=",
-    "aarch64-darwin": "sha256-gp+RF5pvQID1KNOmdWuH0umVPev7CgaKWb9HPS11Nak="
+    "x86_64-linux": "sha256-nb72jyMaMRtWRBxzx77AH22H6+RFI60Up7pHFv9cIDE=",
+    "aarch64-linux": "sha256-nrRWf/D6uQttrBBveGZSoOwV1l4l/7y7EG5e0c7k9OI=",
+    "x86_64-darwin": "sha256-LdevqRZLIW3wygAb5RVwPSMjTlbo5NVrB+X54RBSmEA=",
+    "aarch64-darwin": "sha256-+5rvMxjhShOK7yg8qipsmnJ4sh7HNLqj9SwAVit328U="
   },
   "schemaHashes": {
-    "cli": "sha256-WuAH+TMYxRxTXiT4ED4EvMBWsP5gCe/9KTRafB8x/NY=",
-    "config": "sha256-gocZ5cB8aAbAAudkqYpO6dOQSw0rCEqNmEtxSyXUTGI="
+    "cli": "sha256-iZCNx5xx4Fwn7Ruvw/KqUdTZTp4mve8q+ZMgTqJEGUI=",
+    "config": "sha256-nMZLMK+kyzsbAf1ZV0nBqYTPriFP01henNTQnMeiRj4="
   }
 }
